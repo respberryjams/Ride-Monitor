@@ -1,2135 +1,848 @@
-<!DOCTYPE html>
-<html lang="ms" class="dark">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Konvoi Ride Monitor — Pulau Pinang 2026</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts: Inter & JetBrains Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <!-- SheetJS for Client-Side Excel (.xlsx) Parsing -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
-          colors: {
-            slateDark: '#0b1120',
-            cardDark: '#162032',
-            cardHover: '#1e293b',
-            amberAccent: '#f59e0b',
-            emeraldAccent: '#10b981',
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body {
-      background-color: #0b1120;
-      color: #f8fafc;
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior-y: none;
-    }
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 4px;
-      height: 4px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0b1120;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 9999px;
-    }
-    /* Range slider styling */
-    input[type=range] {
-      -webkit-appearance: none;
-      background: transparent;
-    }
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      height: 24px;
-      width: 24px;
-      border-radius: 50%;
-      background: #f59e0b;
-      cursor: pointer;
-      margin-top: -8px;
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-      border: 2px solid #0b1120;
-    }
-    input[type=range]::-webkit-slider-runnable-track {
-      width: 100%;
-      height: 8px;
-      cursor: pointer;
-      background: #334155;
-      border-radius: 9999px;
-    }
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-  </style>
-</head>
-<body class="min-h-screen flex flex-col bg-[#0b1120] text-slate-100 antialiased selection:bg-amber-500 selection:text-slate-950">
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Konvoi Monitor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: highway-sign top bar (green, white lettering, yellow marker) over a quiet working area of tabbed panels.
+   Colour: expressway green, road-marking yellow, signal amber/red for fuel warnings. Type: Barlow Condensed (signage) + Barlow. */
+:root {
+  --bg: #edf0ec; --surface: #ffffff; --ink: #13211a; --mute: #55665c; --line: #d3dad4;
+  --bar: #0b5d3b; --on-bar: #ffffff; --sign: #f2b705; --accent: #0b5d3b; --accent-soft: #dcebe2;
+  --amber: #8a5a00; --amber-soft: #fbefc8; --red: #b3261e; --red-soft: #f9dcd8; --ok: #1f7a4d; --track: #e2e8e3;
+  --display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1511; --surface: #16201a; --ink: #e5eee8; --mute: #93a69a; --line: #28362d;
+  --bar: #0a3a27; --on-bar: #ffffff; --sign: #f2b705; --accent: #4cc38b; --accent-soft: #183326;
+  --amber: #f0c04a; --amber-soft: #3a2f10; --red: #ff8a80; --red-soft: #3d1a17; --ok: #4cc38b; --track: #253229; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e1511; --surface: #16201a; --ink: #e5eee8; --mute: #93a69a; --line: #28362d;
+  --bar: #0a3a27; --on-bar: #ffffff; --sign: #f2b705; --accent: #4cc38b; --accent-soft: #183326;
+  --amber: #f0c04a; --amber-soft: #3a2f10; --red: #ff8a80; --red-soft: #3d1a17; --ok: #4cc38b; --track: #253229; color-scheme: dark; }
 
-  <!-- Top Sticky Header -->
-  <header class="sticky top-0 z-30 bg-[#0b1120]/95 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
-    <div class="max-w-2xl mx-auto flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2.5 min-w-0 flex-1">
-        <div class="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400">
-          <!-- Motorcycle SVG Icon -->
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 6h2l3 4.5M9 17.5h6M5.5 14l4-6h4l2.5 4.5"/>
-          </svg>
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-1.5">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400">Konvoi Ride Monitor</span>
-            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Offline Ready"></span>
-          </div>
-          <!-- Interactive Trip Switcher Dropdown -->
-          <div class="relative flex items-center mt-0.5">
-            <select id="header-trip-selector" onchange="switchSavedTrip(this.value)"
-              aria-label="Pilih Trip Konvoi"
-              class="w-full appearance-none bg-transparent hover:bg-slate-800/60 rounded-lg pr-6 py-0.5 text-sm sm:text-base font-bold text-white truncate cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition">
-            </select>
-            <svg class="w-4 h-4 text-amber-400 pointer-events-none absolute right-1" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </div>
-        </div>
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bar); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+a { color: var(--accent); }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+.wrap { width: 100%; max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* top bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--bar); color: var(--on-bar); }
+.bar-top { display: flex; align-items: center; gap: 12px; padding-block: 12px 6px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.shield { flex: none; width: 34px; height: 38px; }
+.brand h1 { font-size: 1.5rem; line-height: 1; text-transform: uppercase; }
+.brand small { display: block; font-family: var(--body); font-size: .75rem; opacity: .8; margin-top: 2px; }
+.trip-select { background: rgba(255,255,255,.12); color: var(--on-bar); border: 1px solid rgba(255,255,255,.35); border-radius: 6px; padding: 7px 10px; font: inherit; max-width: 100%; }
+.trip-select option { color: #13211a; background: #fff; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 8px 14px; font-weight: 600; }
+.btn.sign { background: var(--sign); color: #1b1500; border-color: var(--sign); }
+.btn.sm { padding: 5px 10px; font-size: .875rem; }
+.btn.danger { color: var(--red); }
+.tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { background: none; border: 0; color: var(--on-bar); opacity: .75; padding: 10px 14px 9px; font-family: var(--display); font-size: 1.15rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; border-bottom: 4px solid transparent; white-space: nowrap; }
+.tab[aria-selected="true"] { opacity: 1; border-bottom-color: var(--sign); }
+
+main { padding-block: 20px 56px; display: grid; gap: 20px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.panel > h2 { font-size: 1.35rem; margin-bottom: 10px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 20px; }
+.muted { color: var(--mute); }
+.small { font-size: .875rem; }
+.num { font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-size: .75rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.pill.amber { background: var(--amber-soft); color: var(--amber); }
+.pill.red { background: var(--red-soft); color: var(--red); }
+.pill.sign { background: var(--sign); color: #1b1500; }
+
+/* hero */
+.hero { background: var(--bar); color: var(--on-bar); border-radius: 8px; padding: 20px; display: grid; grid-template-columns: auto 1fr; gap: 8px 24px; align-items: center; }
+.hero .count { font-family: var(--display); font-weight: 700; font-size: clamp(3.5rem, 14vw, 5.5rem); line-height: .9; font-variant-numeric: tabular-nums; }
+.hero .count-label { font-family: var(--display); font-size: 1.25rem; text-transform: uppercase; letter-spacing: .06em; opacity: .85; }
+.hero .next { border-left: 3px solid var(--sign); padding-left: 16px; min-width: 0; }
+.hero .next .k { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
+.hero .next .t { font-family: var(--display); font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+.hero .next .a { overflow-wrap: anywhere; }
+@media (max-width: 560px) { .hero { grid-template-columns: 1fr; } .hero .next { border-left: 0; border-top: 3px solid var(--sign); padding: 12px 0 0; } }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.stat { padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.stat b { font-family: var(--display); font-size: 2rem; line-height: 1; display: block; font-variant-numeric: tabular-nums; }
+.stat span { font-size: .8rem; color: var(--mute); text-transform: uppercase; letter-spacing: .06em; }
+
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.list li { display: flex; gap: 10px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--line); min-width: 0; }
+.list li:first-child { border-top: 0; }
+.list .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+/* progress */
+.meter { height: 10px; background: var(--track); border-radius: 99px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.meter.amber i { background: #d99a00; } .meter.red i { background: var(--red); }
+
+/* schedule */
+.daytabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 6px 14px; font-weight: 600; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+:root[data-theme="dark"] .chip[aria-pressed="true"] { color: #04160d; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chip[aria-pressed="true"] { color: #04160d; } }
+.dayhead { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dayhead h2 { font-size: 1.7rem; }
+.links { display: flex; gap: 8px; flex-wrap: wrap; }
+.tl { list-style: none; margin: 14px 0 0; padding: 0; }
+.tl li { display: grid; grid-template-columns: 64px 22px minmax(0, 1fr); gap: 0 10px; padding: 10px 8px; border-radius: 6px; }
+.tl li + li { border-top: 1px solid var(--line); }
+.tl .time { font-family: var(--display); font-size: 1.45rem; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tl .act { overflow-wrap: anywhere; font-weight: 500; }
+.tl .note { white-space: pre-line; overflow-wrap: anywhere; color: var(--mute); font-size: .9rem; }
+.tl .alt { font-size: .9rem; color: var(--mute); }
+.tl li.done .act { text-decoration: line-through; color: var(--mute); }
+.tl li.now { background: var(--amber-soft); }
+.tl li.fuel .time::after { content: " ⛽"; font-size: 1rem; }
+.tick { width: 22px; height: 22px; accent-color: var(--accent); margin: 2px 0 0; cursor: pointer; }
+
+/* fuel */
+.leg { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 90px; gap: 6px 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.leg:first-of-type { border-top: 0; }
+.leg .where { overflow-wrap: anywhere; font-size: .95rem; }
+.leg .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.leg.reset .where::before { content: "⛽ "; }
+@media (max-width: 520px) { .leg { grid-template-columns: minmax(0, 1fr) 80px; } .leg .meter { grid-column: 1 / -1; order: 3; } }
+
+/* members */
+.members { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+.member { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 6px; background: var(--surface); min-width: 0; }
+.member h3 { font-size: 1.5rem; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.member .fuelnote { font-size: .875rem; color: var(--mute); overflow-wrap: anywhere; }
+
+/* packing */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.pack { list-style: none; margin: 0; padding: 0; }
+.pack li { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(110px, 200px); gap: 4px 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.pack li.done .it { text-decoration: line-through; color: var(--mute); }
+.pack .it { overflow-wrap: anywhere; }
+.pack input[type=text] { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); min-width: 0; }
+@media (max-width: 520px) { .pack li { grid-template-columns: 26px minmax(0, 1fr); } .pack li input[type=text] { grid-column: 2; } }
+
+.ed { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); min-width: 0; }
+textarea.ed { resize: vertical; min-height: 56px; }
+.bar .btn:not(.sign) { background: rgba(255,255,255,.12); color: var(--on-bar); border-color: rgba(255,255,255,.35); }
+.btn[aria-pressed="true"], .bar .btn[aria-pressed="true"] { background: var(--sign); color: #1b1500; border-color: var(--sign); }
+.banner { background: var(--amber-soft); color: var(--amber); border-radius: 8px; padding: 10px 14px; font-weight: 500; }
+.elist { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.erow { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 10px; grid-template-columns: 120px minmax(0, 1fr); align-items: end; }
+.erow .full, .erow .rowact { grid-column: 1 / -1; }
+.rowact { display: flex; justify-content: flex-end; }
+@media (max-width: 520px) { .erow { grid-template-columns: 1fr; } }
+.field { display: grid; gap: 3px; min-width: 0; }
+.field > span { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.pack.edit li { grid-template-columns: 26px minmax(0, 1fr) minmax(110px, 200px) auto; align-items: start; }
+.pack.edit .it { display: grid; gap: 6px; }
+@media (max-width: 620px) { .pack.edit li { grid-template-columns: 26px minmax(0, 1fr); } .pack.edit li > * { grid-column: 2; } .pack.edit li > .tick { grid-column: 1; grid-row: 1; } }
+.pack .it input[type=text] { grid-column: auto !important; }
+.addbar { margin-top: 14px; }
+.toast button { margin-left: 12px; background: none; border: 1px solid currentColor; color: inherit; border-radius: 6px; padding: 2px 10px; }
+/* mobile app look */
+.bar .tabs { display: none; }
+main { padding-bottom: 110px; }
+.toast { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+.bnav { display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 9;
+  background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(0,0,0,.08);
+  padding: 6px max(6px, calc((100% - 980px) / 2), env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, calc((100% - 980px) / 2), env(safe-area-inset-left, 0px)); }
+.bnav button { background: none; border: 0; display: grid; justify-items: center; gap: 2px; padding: 6px 0 4px; color: var(--mute); font-size: .72rem; font-weight: 600; letter-spacing: .02em; min-width: 0; border-radius: 12px; }
+.bnav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bnav button[aria-current="page"] { color: var(--accent); }
+.bnav button[aria-current="page"] .ico { background: var(--accent-soft); }
+.bnav .ico { width: 52px; height: 30px; border-radius: 15px; display: grid; place-items: center; }
+.bnav button:hover { color: var(--ink); }
+@media (max-width: 720px) {
+  html { -webkit-tap-highlight-color: transparent; }
+  body { overscroll-behavior-y: none; font-size: 17px; }
+  .bar-top { padding-block: 10px; gap: 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .bar-top .brand { order: 1; margin: 0; }
+  #btnEdit { order: 2; }
+  .trip-select { order: 3; width: 100%; }
+  #btnImport { order: 4; }
+  .brand h1 { font-size: 1.35rem; }
+  .brand small { font-size: .72rem; }
+  .shield { width: 28px; height: 32px; }
+  .bar .tabs { display: none; }
+  .trip-select { flex: 1; min-width: 0; min-height: 44px; font-size: 16px; border-radius: 10px; }
+  .bar .btn { min-height: 44px; border-radius: 10px; }
+  main { padding-block: 14px 110px; gap: 14px; }
+  .panel { border-radius: 16px; padding: 16px; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.05); }
+  .hero { border-radius: 20px; padding: 22px 20px; }
+  .stat { border-radius: 14px; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .btn, .chip { min-height: 44px; }
+  .btn.sm { min-height: 40px; padding: 8px 14px; }
+  .chip { padding: 8px 16px; }
+  .daytabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  .daytabs::-webkit-scrollbar { display: none; }
+  .chip { white-space: nowrap; flex: none; }
+  .tick { width: 28px; height: 28px; }
+  .tl li { grid-template-columns: 58px 28px minmax(0, 1fr); padding: 12px 6px; }
+  .tl .time { font-size: 1.5rem; }
+  .pack li { grid-template-columns: 30px minmax(0, 1fr); padding: 12px 0; }
+  .member { border-radius: 14px; }
+  .ed, .pack input[type=text], select { font-size: 16px; min-height: 44px; border-radius: 10px; }
+  textarea.ed { min-height: 80px; }
+  .btn:active, .chip:active, .bnav a:active, .bnav button:active { transform: scale(.97); }
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+  .bnav { display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 9;
+    background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(0,0,0,.08);
+    padding: 6px max(6px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); }
+  .bnav button { background: none; border: 0; display: grid; justify-items: center; gap: 2px; padding: 6px 0 4px; color: var(--mute); font-size: .68rem; font-weight: 600; letter-spacing: .02em; min-width: 0; border-radius: 12px; }
+  .bnav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .bnav button[aria-current="page"] { color: var(--accent); }
+  .bnav button[aria-current="page"] .ico { background: var(--accent-soft); }
+  .bnav .ico { width: 52px; height: 30px; border-radius: 15px; display: grid; place-items: center; }
+}
+/* files */
+.drop { border: 2px dashed var(--line); border-radius: 8px; padding: 28px 16px; text-align: center; display: grid; gap: 10px; justify-items: center; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.tripitem { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--line); }
+.tripitem:first-child { border-top: 0; }
+.tripitem .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+table.fmt { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.fmt th, table.fmt td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+.scroll { overflow-x: auto; }
+.empty { padding: 18px 0; color: var(--mute); }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; max-width: min(92vw, 520px); z-index: 20; font-weight: 500; }
+@media (prefers-reduced-motion: no-preference) { .meter i { transition: width .25s; } }
+</style>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="bar-top">
+      <div class="brand">
+        <svg class="shield" viewBox="0 0 34 38" aria-hidden="true"><path d="M17 1.5 31.5 6v13c0 8.5-6 14.5-14.5 17.5C8.500 33.500 2.500 27.500 2.500 19V6z" fill="#0b5d3b" stroke="#fff" stroke-width="2.500"/><path d="M9 25l5-10 3.500 6 3-5 4.500 9" fill="none" stroke="#f2b705" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div><h1>Konvoi Monitor</h1><small id="subtitle"></small></div>
       </div>
-
-      <!-- Header Action Buttons: + Trip Baru & Edit Trip -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <button onclick="openEditCurrentTripModal()" title="Edit / Urus Trip Semasa"
-          class="p-2 rounded-xl bg-[#162032] hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white transition active:scale-95">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-          </svg>
-        </button>
-
-        <button onclick="openNewTripModal()"
-          class="flex items-center gap-1 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition active:scale-95 shadow-md shadow-amber-500/20">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-          </svg>
-          <span>Trip Baru</span>
-        </button>
-      </div>
+      <label class="small" for="tripSel" style="position:absolute;left:-9999px">Choose file</label>
+      <select id="tripSel" class="trip-select"></select>
+      <button class="btn" id="btnEdit" type="button" aria-pressed="false">Edit</button>
+      <button class="btn sign" id="btnImport" type="button">Import .xlsx</button>
+      <input id="fileIn" type="file" accept=".xlsx,.xlsm,.xls" hidden>
     </div>
-  </header>
-
-  <!-- Toast Notification Container -->
-  <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col gap-2 w-11/12 max-w-md"></div>
-
-  <!-- Main Content Area -->
-  <main id="app-content" class="flex-1 max-w-2xl w-full mx-auto px-4 pt-4 pb-28 space-y-5">
-    <!-- Dynamic Views Rendered via JS -->
-  </main>
-
-  <!-- Bottom Sticky Thumb-Friendly Navigation -->
-  <nav class="fixed bottom-0 inset-x-0 z-40 bg-[#0b1120]/95 backdrop-blur-lg border-t border-slate-800 pb-safe">
-    <div class="max-w-2xl mx-auto grid grid-cols-4 gap-1 px-2 py-2">
-      <button onclick="switchTab('ringkasan')" id="nav-ringkasan" class="nav-btn flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition active:scale-95">
-        <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-        </svg>
-        <span class="text-[11px] font-semibold">Ringkasan</span>
-      </button>
-
-      <button onclick="switchTab('tentatif')" id="nav-tentatif" class="nav-btn flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition active:scale-95">
-        <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-        </svg>
-        <span class="text-[11px] font-semibold">Tentatif</span>
-      </button>
-
-      <button onclick="switchTab('ahli')" id="nav-ahli" class="nav-btn flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition active:scale-95">
-        <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
-        <span class="text-[11px] font-semibold">Ahli & Minyak</span>
-      </button>
-
-      <button onclick="switchTab('barang')" id="nav-barang" class="nav-btn flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition active:scale-95">
-        <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-        </svg>
-        <span class="text-[11px] font-semibold">Barang & Fail</span>
-      </button>
-    </div>
-  </nav>
-
-  <!-- Custom Modal for Adding/Editing Items & Confirmation -->
-  <div id="custom-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-    <div id="modal-panel" class="bg-[#162032] border border-slate-700 w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4 transform transition-all">
-      <!-- Dynamic Modal Content -->
-    </div>
+    <nav class="tabs" role="tablist" id="tabs"></nav>
   </div>
+</header>
+<div class="wrap"><main id="main" aria-live="polite"></main></div>
+<nav class="bnav" id="bnav" aria-label="Main menu"></nav>
+<div class="toast" id="toast" hidden role="status"></div>
 
-  <script>
-    // =========================================================================
-    // DEFAULT DATASET (Extracted from December 2026.xlsx)
-    // =========================================================================
-    const DEFAULT_TRIP_DATA = {
-      id: "penang-dec-2026",
-      title: "Konvoi Pulau Pinang (26 – 28 Dis 2026)",
-      dateRange: "26 – 28 Dis 2026",
-      paymentNote: "Pembayaran RM100 kepada Epul (Ini Homestay RM400 + Deposit RM100)",
-      notes: [
-        { id: "n1", text: "Pembayaran RM100 kepada Epul (Ini Homestay RM400 + Deposit RM100)", updatedAt: "Catatan Asal" },
-        { id: "n2", text: "Berkumpul di R&R Jejantas Sg Buloh jam 9:00 pagi, tayar golek 9:30 pagi.", updatedAt: "Info Konvoi" }
-      ],
-      homestay: {
-        name: "Ini Homestay, Taman Penaga, Kepala Batas",
-        cost: "RM400 + Deposit RM100",
-        gmap: "https://maps.app.goo.gl/1dqzxP5Dm6E27JpM8?g_st=aw",
-        waze: "https://waze.com/ul/hw0zrkn6rg"
-      },
-      fuelAlertNotes: "Irfan (Yamaha Y15 — 150KM full tank) & Epul (Honda ADV160 — 200KM tinggal 2 bar, 260KM full tank). Wajib isi penuh di R&R Tapah, Petronas Sg Perak & Penaga/Bertam.",
-      tripOdometerKm: 0,
-      riders: [
-        { id: "r1", no: 1, name: "Kamal", bike: "Wmoto R3TS V3", tumpang: "Ngn Kamal", fuelNote: "380KM untuk full. 2 bar tinggal utk isi minyak setelah perjalanan mencapai 300KM", maxKm: 380, warnKm: 300, paid: false, paymentRemark: "" },
-        { id: "r2", no: 2, name: "Lan", bike: "QJPort 350", tumpang: "Ngn Lan", fuelNote: "380KM Full. Total bar - Trip A", maxKm: 380, warnKm: 300, paid: false, paymentRemark: "" },
-        { id: "r3", no: 3, name: "Nuar", bike: "SR3 250", tumpang: "ngn Nuar", fuelNote: "380KM Full tank", maxKm: 380, warnKm: 300, paid: false, paymentRemark: "" },
-        { id: "r4", no: 4, name: "Irfan", bike: "Yamaha Y15", tumpang: "-", fuelNote: "150KM Full tank", maxKm: 150, warnKm: 115, paid: false, paymentRemark: "" },
-        { id: "r5", no: 5, name: "Epul", bike: "Honda ADV160", tumpang: "-", fuelNote: "Tank 8.1 Liter..200Km tinggal 2 bar...Full tank 260km", maxKm: 260, warnKm: 200, paid: true, paymentRemark: "Bendahari / Kutipan Homestay" },
-        { id: "r6", no: 6, name: "Azrul", bike: "N/a", tumpang: "Ya", fuelNote: "Helmet cari dalam saiz L kot", maxKm: null, warnKm: null, paid: false, paymentRemark: "" },
-        { id: "r7", no: 7, name: "Izwan", bike: "Benelli 250", tumpang: "-", fuelNote: "350KM Full tank", maxKm: 350, warnKm: 280, paid: false, paymentRemark: "" },
-        { id: "r8", no: 8, name: "Erol", bike: "Zontes 350E", tumpang: "-", fuelNote: "380KM Full tank", maxKm: 380, warnKm: 300, paid: false, paymentRemark: "" }
-      ],
-      days: [
-        {
-          id: "day1",
-          label: "Day 1",
-          subLabel: "Sabtu 26 Dis",
-          fullRouteGmap: "https://maps.app.goo.gl/CEMbU3u6vEpAk4CG8",
-          checkpoints: [
-            { id: "d1-1", time: "09:00", activity: "Berkumpul di R&R Jejantas Sungai Buloh (Bertolak 09:30 pagi)", comment: "Google Maps seluruh perjalanan 1 hari", mapUrl: "https://maps.app.goo.gl/CEMbU3u6vEpAk4CG8", done: false },
-            { id: "d1-2", time: "09:55", activity: "Isi minyak di R&R Rawang Northbound, North-South Expy, 50480 Rawang, Selangor", comment: "Jarak ~27 km dari Sg Buloh (~25 minit pemanduan)", mapUrl: "", done: false },
-            { id: "d1-3", time: "11:05", activity: "Brunch & rehat di Nasi Bamboo Sungai Klah • Sungkai, Perak", comment: "Jarak ~79 km dari Rawang (~1 jam 10 minit). Makan & rehat hingga 12:35 tgh hari", mapUrl: "", done: false },
-            { id: "d1-4", time: "12:50", activity: "Isi minyak penuh di R&R Tapah (Arah Utara) [Petronas / Shell]", comment: "Jarak ~13 km dari Sungkai (~15 minit). Wajib full tank (terutama Yamaha Y15 & ADV160)", mapUrl: "", done: false },
-            { id: "d1-5", time: "13:40", activity: "Rehat, solat Zohor & isi minyak di Petronas Sungai Perak (Arah Utara)", comment: "Jarak ~66 km dari Tapah (~50 minit melalui Ipoh / Terowong Menora)", mapUrl: "", done: false },
-            { id: "d1-6", time: "14:15", activity: "Sambung perjalanan menuju ke Pulau Pinang (susur keluar Bertam / Kepala Batas)", comment: "Jarak ~120 km dari Sungai Perak (~1 jam 25 minit). (Opsyen: top-up minyak di R&R Gunung Semanggol jika perlu)", mapUrl: "", done: false },
-            { id: "d1-7", time: "15:40", activity: "Tiba & Check-in di Ini Homestay, Taman Penaga, Kepala Batas", comment: "Rehat & kemas barang", mapUrl: "https://maps.app.goo.gl/1dqzxP5Dm6E27JpM8?g_st=aw", done: false },
-            { id: "d1-8", time: "17:00", activity: "Rehat bebas / bersiap untuk aktiviti petang atau makan malam", comment: "Boleh rancang makan malam sekitar Kepala Batas / Penaga", mapUrl: "", done: false },
-            { id: "d1-9", time: "19:00", activity: "Solat Maghrib & Isyak / Makan malam santai (sekitar Kepala Batas / Bertam)", comment: "Nikmati hidangan tempatan", mapUrl: "", done: false },
-            { id: "d1-10", time: "20:30", activity: "Lepak santai di Setia Fontaines Heritage Park / Bertam Street Market", comment: "Menikmati suasana lampu malam & air pancut muzikal", mapUrl: "", done: false },
-            { id: "d1-11", time: "22:00", activity: "Minum malam / santai bersama ahli konvoi", comment: "Borak-borak santai", mapUrl: "", done: false },
-            { id: "d1-12", time: "23:30", activity: "Bertolak pulang ke Ini Homestay, Taman Penaga & berehat", comment: "Tidur awal untuk persiapan hari seterusnya", mapUrl: "", done: false },
-            { id: "d1-13", time: "00:00", activity: "Rehat & tidur di homestay (Tengah malam)", comment: "Cas tenaga untuk persiapan perjalanan Day 2 Ahad", mapUrl: "", done: false }
-          ]
-        },
-        {
-          id: "day2",
-          label: "Day 2",
-          subLabel: "Ahad 27 Dis",
-          fullRouteGmap: "",
-          checkpoints: [
-            { id: "d2-1", time: "09:00", activity: "Bertolak dari Ini Homestay, Penaga menuju ke Georgetown (melalui Jambatan Pulau Pinang atau feri)", comment: "Mula gerak konvoi pagi dari Penaga ke pulau", mapUrl: "", done: false },
-            { id: "d2-2", time: "10:00", activity: "Sarapan / brunch di Nasi Kandar Merlin (George Town)", comment: "Lokasi Nasi Kandar #1 (Union Street, George Town)", mapUrl: "", done: false },
-            { id: "d2-3", time: "11:15", activity: "Ronda santai & bergambar konvoi di Chew Jetty / Street Art George Town / Padang Kota Lama", comment: "Sesi bergambar kenangan & meronda kawasan warisan", mapUrl: "", done: false },
-            { id: "d2-4", time: "12:30", activity: "Makan tengah hari (lunch) di Deens Maju Nasi Kandar (Jalan Gurdwara)", comment: "Lokasi Nasi Kandar #2 (Jalan Gurdwara, George Town)", mapUrl: "", done: false },
-            { id: "d2-5", time: "14:30", activity: "Aktiviti bebas & beli buah tangan di sekitar pulau (atau opsyen naik ke The Top Penang / Komtar)", comment: "Masa santai & shopping buah tangan sebelum balik Seberang", mapUrl: "", done: false },
-            { id: "d2-6", time: "16:30", activity: "Ride pulang menyeberangi jambatan ke arah Seberang Perai", comment: "Bergerak balik ke tanah besar (Seberang Perai)", mapUrl: "", done: false },
-            { id: "d2-7", time: "17:30", activity: "Lepak santai petang di Setia Fontaines Heritage Park / Vision Park, Bertam", comment: "Rehat & lepak petang sekitar Kepala Batas", mapUrl: "", done: false },
-            { id: "d2-8", time: "20:00", activity: "Makan malam / supper di Nasi Kandar Bawah Pokok (Pokok Ketapang), Butterworth", comment: "Lokasi Nasi Kandar #3 (Kampung Benggali, Butterworth)", mapUrl: "", done: false },
-            { id: "d2-9", time: "22:30", activity: "Bertolak pulang ke Ini Homestay, Penaga & rehat untuk persiapan hari pulang", comment: "Balik homestay, kemas barang & cas tenaga untuk Day 3", mapUrl: "", done: false }
-          ]
-        },
-        {
-          id: "day3",
-          label: "Day 3",
-          subLabel: "Isnin 28 Dis",
-          fullRouteGmap: "",
-          checkpoints: [
-            { id: "d3-1", time: "09:00", activity: "Sarapan pagi & kemas beg di Ini Homestay, Penaga", comment: "Persiapan awal sebelum check-out", mapUrl: "", done: false },
-            { id: "d3-2", time: "10:30", activity: "Check Out dari Ini Homestay, Penaga & mula bergerak konvoi", comment: "Bertolak pulang", mapUrl: "", done: false },
-            { id: "d3-3", time: "11:30", activity: "Isi minyak penuh di stesen minyak berdekatan Penaga/Bertam", comment: "Wajib full tank (terutama Yamaha Y15 & ADV160)", mapUrl: "", done: false },
-            { id: "d3-4", time: "13:00", activity: "Makan tengah hari & solat Zohor (Kawasan sekitar Perak Utara / Taiping / Manjung)", comment: "Rehat konvoi", mapUrl: "", done: false },
-            { id: "d3-5", time: "15:30", activity: "Ride santai melalui jalan lama / pesisiran pantai / WCE", comment: "Menikmati pemanduan jalan belakang / kampung", mapUrl: "", done: false },
-            { id: "d3-6", time: "17:30", activity: "Singgah santai & minum petang di sekitar pesisir pantai / destinasi persinggahan", comment: "Rehat kaki & bergambar", mapUrl: "", done: false },
-            { id: "d3-7", time: "19:30", activity: "Dinner di Kerang Bakar Pantai Remis (Pantai Remis, Jeram)", comment: "Buka Isnin (3:30 ptg - 11:00 mlm)", mapUrl: "https://www.google.com/maps/place//data=!4m2!3m1!19sChIJiYyJO8X3zDERAjPGqPw_Wcs", done: false },
-            { id: "d3-8", time: "21:30", activity: "Bergerak pulang dari Pantai Remis, Jeram ke destinasi masing-masing (Klang / Lembah Klang)", comment: "Laluan dekat (~25-40 minit ke Klang/Kapar)", mapUrl: "", done: false },
-            { id: "d3-9", time: "22:30", activity: "Tiba di destinasi akhir (Klang / Lembah Klang) & bersurai", comment: "Tamat konvoi 3 hari 2 malam", mapUrl: "", done: false }
-          ]
-        }
-      ],
-      items: [
-        { id: "i1", no: 1, name: "Berus Gigi", pic: "", comment: "", checked: false },
-        { id: "i2", no: 2, name: "Ubat Gigi", pic: "", comment: "", checked: false },
-        { id: "i3", no: 3, name: "Perfume", pic: "", comment: "", checked: false },
-        { id: "i4", no: 4, name: "Deodorant", pic: "", comment: "", checked: false },
-        { id: "i5", no: 5, name: "Ubat Cacing utk moto pancit", pic: "Epul bawak", comment: "", checked: false },
-        { id: "i6", no: 6, name: "Baju", pic: "3 pasang", comment: "", checked: false },
-        { id: "i7", no: 7, name: "Seluar", pic: "3 pasang", comment: "", checked: false },
-        { id: "i8", no: 8, name: "Plastik utk baju basah", pic: "", comment: "", checked: false },
-        { id: "i9", no: 9, name: "Lampu Led", pic: "Semua", comment: "Kalau bole bawak", checked: false },
-        { id: "i10", no: 10, name: "Charger", pic: "", comment: "", checked: false },
-        { id: "i11", no: 11, name: "Lighter", pic: "Irfan", comment: "", checked: false },
-        { id: "i12", no: 12, name: "Jaring motor", pic: "", comment: "", checked: false },
-        { id: "i13", no: 13, name: "Pam Motor", pic: "Epul bawak", comment: "", checked: false },
-        { id: "i14", no: 14, name: "Baju Hujan", pic: "Kamal ada saiz XL", comment: "", checked: false },
-        { id: "i15", no: 15, name: "Glove", pic: "", comment: "", checked: false },
-        { id: "i16", no: 16, name: "Panadol", pic: "", comment: "", checked: false },
-        { id: "i17", no: 17, name: "Tuala", pic: "", comment: "", checked: false },
-        { id: "i18", no: 18, name: "Kipas kecik", pic: "Wajib bawa", comment: "", checked: false },
-        { id: "i19", no: 19, name: "Tong Minyak", pic: "Irfan", comment: "", checked: false },
-        { id: "i20", no: 20, name: "Selipar Jepun", pic: "", comment: "", checked: false },
-        { id: "i21", no: 21, name: "Ubat GAOUT", pic: "Lan @ Irfan", comment: "Wajib", checked: false },
-        { id: "i22", no: 22, name: "Ubat Gastric", pic: "All", comment: "", checked: false },
-        { id: "i23", no: 23, name: "Touch light", pic: "All if ada", comment: "", checked: false }
-      ]
-    };
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* Pure parser: sheets = { sheetName: rows[][] } -> trip object */
+function parseTrip(sheets, fileName) {
+  var MONTHS = { jan:0, januari:0, january:0, feb:1, februari:1, february:1, mac:2, mar:2, march:2, apr:3, april:3,
+    mei:4, may:4, jun:5, june:5, julai:6, jul:6, july:6, ogos:7, ogo:7, aug:7, august:7, sep:8, sept:8, september:8,
+    okt:9, oktober:9, oct:9, october:9, nov:10, november:10, dis:11, disember:11, dec:11, december:11 };
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  var s = function (v) { return v == null ? '' : String(v).trim(); };
+  var low = function (v) { return s(v).toLowerCase(); };
 
-    // =========================================================================
-    // STATE MANAGEMENT & LOCALSTORAGE
-    // =========================================================================
-    const STORAGE_KEY_TRIPS = 'konvoi_ride_monitor_trips_v1';
-    const STORAGE_KEY_ACTIVE_ID = 'konvoi_ride_monitor_active_id_v1';
+  function timeStr(v) {
+    if (typeof v === 'number' && v >= 0 && v < 1.0001) {
+      var m = Math.round(v * 1440) % 1440;
+      return pad(Math.floor(m / 60)) + ':' + pad(m % 60);
+    }
+    if (v instanceof Date) return pad(v.getHours()) + ':' + pad(v.getMinutes());
+    var t = s(v).match(/^(\d{1,2})[:.](\d{2})\s*(am|pm)?/i);
+    if (t) {
+      var h = +t[1];
+      if (t[3] && /pm/i.test(t[3]) && h < 12) h += 12;
+      if (t[3] && /am/i.test(t[3]) && h === 12) h = 0;
+      return pad(h) + ':' + t[2];
+    }
+    return '';
+  }
+  function parseDate(txt) {
+    var m = s(txt).match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+    if (!m) return '';
+    var mo = MONTHS[m[2].toLowerCase()];
+    if (mo == null) return '';
+    return m[3] + '-' + pad(mo + 1) + '-' + pad(+m[1]);
+  }
+  function findHeader(rows, test) {
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i] || [];
+      for (var j = 0; j < r.length; j++) if (test(low(r[j]), r)) return i;
+    }
+    return -1;
+  }
+  function colOf(row, re) {
+    for (var j = 0; j < row.length; j++) if (re.test(low(row[j]))) return j;
+    return -1;
+  }
 
-    let savedTrips = {};
-    let activeTripId = "penang-dec-2026";
-    let currentTab = 'ringkasan';
-    let selectedDayIndex = 0;
-    let itemFilter = 'all'; // 'all' | 'pending' | 'pic'
-    let itemSearch = '';
+  var trip = { name: '', days: [], members: [], notes: [], pack: [], packNotes: [], warnings: [] };
+  var base = String(fileName || 'Trip').replace(/\.[^.]+$/, '').replace(/^[0-9a-f]{8}-/i, '').replace(/[_]+/g, ' ').trim();
+  trip.name = base || 'Trip';
 
-    function loadState() {
-      try {
-        const rawTrips = localStorage.getItem(STORAGE_KEY_TRIPS);
-        const rawActiveId = localStorage.getItem(STORAGE_KEY_ACTIVE_ID);
-        if (rawTrips) {
-          savedTrips = JSON.parse(rawTrips);
-        }
-        if (!savedTrips || Object.keys(savedTrips).length === 0) {
-          savedTrips = { [DEFAULT_TRIP_DATA.id]: JSON.parse(JSON.stringify(DEFAULT_TRIP_DATA)) };
-        }
-        // Ensure backward compatibility for notes & paymentRemark fields
-        Object.values(savedTrips).forEach(t => {
-          if (!Array.isArray(t.notes)) {
-            t.notes = t.paymentNote
-              ? [{ id: 'n-init', text: t.paymentNote, updatedAt: 'Catatan' }]
-              : [];
-          }
-          if (Array.isArray(t.riders)) {
-            t.riders.forEach(r => {
-              if (typeof r.paymentRemark !== 'string') r.paymentRemark = '';
-            });
-          }
-        });
-        if (rawActiveId && savedTrips[rawActiveId]) {
-          activeTripId = rawActiveId;
-        } else {
-          activeTripId = Object.keys(savedTrips)[0];
-        }
-      } catch (e) {
-        console.error("Storage load error:", e);
-        savedTrips = { [DEFAULT_TRIP_DATA.id]: JSON.parse(JSON.stringify(DEFAULT_TRIP_DATA)) };
-        activeTripId = DEFAULT_TRIP_DATA.id;
+  Object.keys(sheets).forEach(function (name) {
+    var rows = sheets[name] || [];
+    var hDay = findHeader(rows, function (c) { return (c === 'masa' || c === 'time'); });
+    var hPack = findHeader(rows, function (c) { return (c === 'barangan' || c === 'items' || c === 'packing list'); });
+    var hMem = findHeader(rows, function (c, r) { return (c === 'nama' || c === 'name') && colOf(r, /motor|bike/) >= 0; });
+
+    if (hDay >= 0) {
+      var hr = rows[hDay];
+      var cAct = colOf(hr, /^(aktiviti|activity)$/), cAlt = colOf(hr, /backup/), cNote = colOf(hr, /komen|comment|notes?/);
+      if (cAct < 0) cAct = 1;
+      var day = { id: 'd' + (trip.days.length + 1), name: name, label: '', sub: '', date: '', title: '', stay: '', gmap: '', waze: '', rows: [] };
+      var dm = name.match(/day\s*(\d+)\s*(.*)/i);
+      day.label = dm ? 'Day ' + dm[1] : name;
+      day.sub = dm ? dm[2].trim() : '';
+      for (var i = 0; i < hDay; i++) {
+        var r = rows[i] || [], k = low(r[0]), v = s(r[1]);
+        if (!v) continue;
+        if (k === 'aktiviti') { day.title = v; day.date = parseDate(v); }
+        else if (/homestay|penginapan|hotel/.test(k)) day.stay = v;
+        else if (/gmap|google/.test(k)) day.gmap = v;
+        else if (/waze/.test(k)) day.waze = v;
       }
-    }
-
-    function saveState() {
-      try {
-        localStorage.setItem(STORAGE_KEY_TRIPS, JSON.stringify(savedTrips));
-        localStorage.setItem(STORAGE_KEY_ACTIVE_ID, activeTripId);
-      } catch (e) {
-        showToast("Gagal simpan ke memori browser.", "error");
+      for (var j = hDay + 1; j < rows.length; j++) {
+        var q = rows[j] || [];
+        var act = s(q[cAct]);
+        if (!act) continue;
+        day.rows.push({ t: timeStr(q[0]), act: act, alt: cAlt >= 0 ? s(q[cAlt]) : '', note: cNote >= 0 ? s(q[cNote]) : '' });
       }
-    }
-
-    function getTrip() {
-      return savedTrips[activeTripId];
-    }
-
-    // =========================================================================
-    // UTILITIES (Toast, Modal, HTML Escaping)
-    // =========================================================================
-    function esc(str) {
-      if (str === null || str === undefined) return '';
-      return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    function linkifyText(str) {
-      const escaped = esc(str);
-      return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline break-all hover:text-blue-300">$1</a>');
-    }
-
-    function showToast(message, type = 'success') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      const colors = type === 'error'
-        ? 'bg-red-950/95 border-red-500/50 text-red-200'
-        : type === 'warning'
-        ? 'bg-amber-950/95 border-amber-500/50 text-amber-200'
-        : 'bg-emerald-950/95 border-emerald-500/50 text-emerald-200';
-      toast.className = `px-4 py-3 rounded-xl border ${colors} shadow-xl text-xs font-semibold flex items-center justify-between gap-2 backdrop-blur-md transition-all duration-300 transform translate-y-0 opacity-100`;
-      toast.innerHTML = `<span>${esc(message)}</span>`;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.classList.add('opacity-0', '-translate-y-2');
-        setTimeout(() => toast.remove(), 300);
-      }, 2800);
-    }
-
-    function openModal(htmlContent) {
-      const modal = document.getElementById('custom-modal');
-      const panel = document.getElementById('modal-panel');
-      panel.innerHTML = htmlContent;
-      modal.classList.remove('hidden');
-    }
-
-    function closeModal() {
-      document.getElementById('custom-modal').classList.add('hidden');
-    }
-
-    document.getElementById('custom-modal').addEventListener('click', (e) => {
-      if (e.target.id === 'custom-modal') closeModal();
-    });
-
-    // =========================================================================
-    // NAVIGATION & RENDER CONTROLLER
-    // =========================================================================
-    function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('text-amber-400', 'bg-amber-500/10');
-        btn.classList.add('text-slate-400', 'hover:text-slate-200');
-      });
-      const activeBtn = document.getElementById(`nav-${tab}`);
-      if (activeBtn) {
-        activeBtn.classList.remove('text-slate-400', 'hover:text-slate-200');
-        activeBtn.classList.add('text-amber-400', 'bg-amber-500/10');
+      trip.days.push(day);
+    } else if (hPack >= 0) {
+      var ph = rows[hPack];
+      var cB = colOf(ph, /^(barangan|items?|packing list)$/), cW = colOf(ph, /pembawa|carrier|bringer/), cK = colOf(ph, /komen|comment|notes?/);
+      var maxCol = Math.max(cB, cW, cK);
+      for (var a = hPack + 1; a < rows.length; a++) {
+        var pr = rows[a] || [];
+        if (/^(barangan|items?|packing list)$/.test(low(pr[cB]))) continue;
+        for (var c = maxCol + 1; c < pr.length; c++) if (s(pr[c])) trip.packNotes.push(s(pr[c]));
+        var item = s(pr[cB]);
+        if (!item) continue;
+        trip.pack.push({ item: item, who: cW >= 0 ? s(pr[cW]) : '', note: cK >= 0 ? s(pr[cK]) : '' });
       }
-      render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function render() {
-      const trip = getTrip();
-      const selector = document.getElementById('header-trip-selector');
-      if (selector) {
-        selector.innerHTML = Object.keys(savedTrips).map(id => {
-          const t = savedTrips[id];
-          return `<option value="${esc(id)}" class="bg-[#162032] text-white font-semibold" ${id === activeTripId ? 'selected' : ''}>${esc(t.title)}</option>`;
-        }).join('');
-      }
-      const container = document.getElementById('app-content');
-
-      if (currentTab === 'ringkasan') {
-        container.innerHTML = renderRingkasan(trip);
-      } else if (currentTab === 'tentatif') {
-        container.innerHTML = renderTentatif(trip);
-      } else if (currentTab === 'ahli') {
-        container.innerHTML = renderAhli(trip);
-      } else if (currentTab === 'barang') {
-        container.innerHTML = renderBarang(trip);
-      }
-    }
-
-    // =========================================================================
-    // NEW TRIP & EDIT TRIP MODALS
-    // =========================================================================
-    function openNewTripModal() {
-      const currentTrip = getTrip();
-      openModal(`
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-base font-extrabold text-white">Tambah Trip Konvoi Baru</h3>
-            <p class="text-[11px] text-slate-400">Rancang destinasi konvoi seterusnya</p>
-          </div>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Trip / Destinasi *</label>
-            <input id="nt-title" type="text" placeholder="cth: Konvoi Cameron Highlands 2027" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Tarikh / Tempoh</label>
-              <input id="nt-date" type="text" placeholder="cth: 15 – 17 Jan 2027" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Bilangan Hari</label>
-              <select id="nt-days" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500">
-                <option value="1">1 Hari (Day Ride)</option>
-                <option value="2">2 Hari 1 Malam</option>
-                <option value="3" selected>3 Hari 2 Malam</option>
-                <option value="4">4 Hari 3 Malam</option>
-                <option value="5">5 Hari 4 Malam</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Homestay / Hotel (Opsyenal)</label>
-            <input id="nt-homestay" type="text" placeholder="cth: Tanah Rata Homestay, Cameron" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Link Google Maps</label>
-              <input id="nt-gmap" type="url" placeholder="https://maps.app.goo.gl/..." class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Link Waze</label>
-              <input id="nt-waze" type="url" placeholder="https://waze.com/ul/..." class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500" />
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Kos Penginapan / Kutipan (Opsyenal)</label>
-            <input id="nt-cost" type="text" placeholder="cth: RM350 + Deposit RM100" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div class="bg-[#0b1120] border border-amber-500/30 rounded-xl p-3 space-y-2">
-            <label class="flex items-start gap-2.5 cursor-pointer">
-              <input id="nt-copy-template" type="checkbox" checked class="mt-0.5 w-4 h-4 accent-amber-500 rounded" />
-              <div>
-                <div class="text-xs font-bold text-amber-400">Salin Ahli & Senarai Barang Asas</div>
-                <div class="text-[11px] text-slate-400 leading-snug">Salin ${currentTrip.riders.length} ahli (${currentTrip.riders.slice(0,4).map(r=>r.name).join(', ')}...) beserta data tangki motor & ${currentTrip.items.length} barangan konvoi.</div>
-              </div>
-            </label>
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="createNewTrip()" class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">Cipta Trip</button>
-        </div>
-      `);
-      setTimeout(() => document.getElementById('nt-title')?.focus(), 50);
-    }
-
-    function createNewTrip() {
-      const rawTitle = document.getElementById('nt-title').value.trim();
-      if (!rawTitle) {
-        showToast("Sila masukkan nama trip konvoi.", "error");
-        return;
-      }
-      const dateStr = document.getElementById('nt-date').value.trim();
-      const numDays = parseInt(document.getElementById('nt-days').value, 10) || 3;
-      const homestayName = document.getElementById('nt-homestay').value.trim();
-      const gmap = document.getElementById('nt-gmap').value.trim();
-      const waze = document.getElementById('nt-waze').value.trim();
-      const cost = document.getElementById('nt-cost').value.trim();
-      const copyTemplate = document.getElementById('nt-copy-template').checked;
-
-      const fullTitle = dateStr && !rawTitle.includes(dateStr) ? `${rawTitle} (${dateStr})` : rawTitle;
-      const newId = 'trip-' + Date.now();
-      const sourceTrip = getTrip();
-
-      const generatedDays = [];
-      for (let i = 1; i <= numDays; i++) {
-        generatedDays.push({
-          id: `${newId}-day${i}`,
-          label: `Day ${i}`,
-          subLabel: dateStr ? `Hari ${i} • ${dateStr}` : `Hari ke-${i}`,
-          fullRouteGmap: "",
-          checkpoints: [
-            {
-              id: `${newId}-d${i}-cp1`,
-              time: "09:00",
-              activity: i === 1 ? "Berkumpul di RV Point & tayar golek" : i === numDays ? "Sarapan, kemas barang & check-out pulang" : "Sarapan pagi & mula bergerak konvoi",
-              comment: "Isi minyak penuh sebelum bertolak",
-              mapUrl: "",
-              done: false
-            }
-          ]
-        });
-      }
-
-      const clonedRiders = copyTemplate
-        ? sourceTrip.riders.map((r, idx) => ({
-            ...r,
-            id: `${newId}-r${idx + 1}`,
-            paid: false,
-            paymentRemark: ""
-          }))
-        : [];
-
-      const clonedItems = copyTemplate
-        ? sourceTrip.items.map((itm, idx) => ({
-            ...itm,
-            id: `${newId}-i${idx + 1}`,
-            checked: false
-          }))
-        : [];
-
-      const lowRangeNames = clonedRiders
-        .filter(r => r.maxKm && r.maxKm <= 280)
-        .map(r => `${r.name} (${r.bike} — ${r.maxKm}KM)`)
-        .join(' & ');
-
-      savedTrips[newId] = {
-        id: newId,
-        title: fullTitle,
-        dateRange: dateStr,
-        paymentNote: cost ? `Kutipan Penginapan: ${cost}` : "Catatan & Kutipan Konvoi",
-        notes: [
-          {
-            id: `${newId}-n1`,
-            text: cost ? `Kutipan Penginapan (${homestayName || fullTitle}): ${cost}` : `Info Trip: ${fullTitle}`,
-            updatedAt: "Trip Baru"
-          }
-        ],
-        homestay: {
-          name: homestayName,
-          cost: cost,
-          gmap: gmap,
-          waze: waze
-        },
-        fuelAlertNotes: lowRangeNames
-          ? `Perhatian jarak tangki: ${lowRangeNames}. Rancang pitstop minyak setiap 120–150KM.`
-          : "Pantau jarak tangki motor dalam konvoi dan isi penuh sebelum laluan jauh.",
-        tripOdometerKm: 0,
-        riders: clonedRiders,
-        days: generatedDays,
-        items: clonedItems
-      };
-
-      activeTripId = newId;
-      selectedDayIndex = 0;
-      saveState();
-      closeModal();
-      switchTab('ringkasan');
-      showToast(`Trip "${fullTitle}" berjaya dicipta!`);
-    }
-
-    function openEditCurrentTripModal() {
-      const trip = getTrip();
-      const isDefault = trip.id === DEFAULT_TRIP_DATA.id;
-      openModal(`
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-base font-extrabold text-white">Urus & Edit Info Trip</h3>
-            <p class="text-[11px] text-slate-400">Kemaskini nama trip, homestay & bilangan hari</p>
-          </div>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Trip</label>
-            <input id="et-title" type="text" value="${esc(trip.title)}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Homestay / Penginapan</label>
-            <input id="et-homestay" type="text" value="${esc(trip.homestay?.name || '')}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Kos / Deposit Penginapan</label>
-            <input id="et-cost" type="text" value="${esc(trip.homestay?.cost || '')}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Link Google Maps</label>
-              <input id="et-gmap" type="url" value="${esc(trip.homestay?.gmap || '')}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Link Waze</label>
-              <input id="et-waze" type="url" value="${esc(trip.homestay?.waze || '')}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-500" />
-            </div>
-          </div>
-
-          <!-- Manage Days Count -->
-          <div class="bg-[#0b1120] border border-slate-800 rounded-xl p-3 flex items-center justify-between">
-            <div>
-              <div class="text-xs font-bold text-white">Bilangan Hari Tentatif</div>
-              <div class="text-[11px] text-slate-400">Semasa: ${trip.days.length} hari (${trip.days.map(d => d.label).join(', ')})</div>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button type="button" onclick="adjustTripDays(-1)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm">−</button>
-              <button type="button" onclick="adjustTripDays(1)" class="w-8 h-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm">+</button>
-            </div>
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          ${!isDefault ? `<button onclick="deleteSavedTrip('${trip.id}'); closeModal();" class="px-3 py-2.5 rounded-xl bg-red-950/80 border border-red-500/40 text-red-300 text-xs font-bold">Padam Trip</button>` : ''}
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="saveCurrentTripEdits()" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-extrabold">Simpan</button>
-        </div>
-      `);
-    }
-
-    function adjustTripDays(delta) {
-      const trip = getTrip();
-      if (delta > 0) {
-        const nextNum = trip.days.length + 1;
-        trip.days.push({
-          id: `${trip.id}-day${nextNum}-${Date.now()}`,
-          label: `Day ${nextNum}`,
-          subLabel: `Hari ke-${nextNum}`,
-          fullRouteGmap: "",
-          checkpoints: [
-            { id: `cp-${Date.now()}`, time: "09:00", activity: "Aktiviti konvoi bermula", comment: "", mapUrl: "", done: false }
-          ]
-        });
-        saveState();
-        openEditCurrentTripModal();
-        render();
-        showToast(`Day ${nextNum} ditambah!`);
-      } else if (delta < 0 && trip.days.length > 1) {
-        const removed = trip.days.pop();
-        if (selectedDayIndex >= trip.days.length) selectedDayIndex = trip.days.length - 1;
-        saveState();
-        openEditCurrentTripModal();
-        render();
-        showToast(`${removed.label} dibuang.`, "warning");
-      }
-    }
-
-    function saveCurrentTripEdits() {
-      const trip = getTrip();
-      const newTitle = document.getElementById('et-title').value.trim();
-      if (!newTitle) {
-        showToast("Nama trip tidak boleh kosong.", "error");
-        return;
-      }
-      trip.title = newTitle;
-      if (!trip.homestay) trip.homestay = { name: "", cost: "", gmap: "", waze: "" };
-      trip.homestay.name = document.getElementById('et-homestay').value.trim();
-      trip.homestay.cost = document.getElementById('et-cost').value.trim();
-      trip.homestay.gmap = document.getElementById('et-gmap').value.trim();
-      trip.homestay.waze = document.getElementById('et-waze').value.trim();
-      saveState();
-      closeModal();
-      render();
-      showToast("Maklumat trip dikemaskini!");
-    }
-
-    // =========================================================================
-    // VIEW 1: RINGKASAN (DASHBOARD)
-    // =========================================================================
-    function renderRingkasan(trip) {
-      const totalRiders = trip.riders.length;
-      const paidRiders = trip.riders.filter(r => r.paid).length;
-
-      // Checkpoint stats
-      let totalCheckpoints = 0;
-      let doneCheckpoints = 0;
-      trip.days.forEach(d => {
-        totalCheckpoints += d.checkpoints.length;
-        doneCheckpoints += d.checkpoints.filter(c => c.done).length;
-      });
-      const cpPercent = totalCheckpoints > 0 ? Math.round((doneCheckpoints / totalCheckpoints) * 100) : 0;
-
-      // Checklist stats
-      const totalItems = trip.items.length;
-      const checkedItems = trip.items.filter(i => i.checked).length;
-      const itemPercent = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
-
-      // Next pending checkpoint
-      let nextCp = null;
-      let nextCpDay = '';
-      for (const d of trip.days) {
-        const found = d.checkpoints.find(c => !c.done);
-        if (found) {
-          nextCp = found;
-          nextCpDay = `${d.label} (${d.subLabel})`;
-          break;
-        }
-      }
-
-      // Low-range bikes alert list
-      const lowRangeRiders = trip.riders.filter(r => r.maxKm !== null && r.maxKm <= 280);
-      const notesList = Array.isArray(trip.notes) ? trip.notes : [];
-      const tripCount = Object.keys(savedTrips).length;
-
-      return `
-        <!-- Hero Trip Banner -->
-        <div class="bg-gradient-to-br from-[#162032] via-[#1a2740] to-[#0f172a] border border-slate-700/80 rounded-2xl p-4 shadow-lg">
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-1.5 mb-2">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                  ${trip.days.length} Hari • ${totalRiders} Ahli
-                </span>
-                ${tripCount > 1 ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">${tripCount} Trip Tersimpan</span>` : ''}
-              </div>
-              <h2 class="text-lg sm:text-xl font-extrabold text-white leading-snug">${esc(trip.title)}</h2>
-            </div>
-            <button onclick="openEditCurrentTripModal()" class="shrink-0 px-2.5 py-1.5 rounded-xl bg-[#0b1120]/80 hover:bg-slate-800 border border-slate-700 text-[11px] font-bold text-slate-300 transition">
-              Edit Trip
-            </button>
-          </div>
-
-          <!-- Quick Add Note Inline Input -->
-          <div class="flex gap-2">
-            <input id="quick-note-input" type="text" placeholder="Tulis catatan baru (cth: Kamal bayar RM100)..."
-              onkeydown="if(event.key==='Enter') addQuickNote()"
-              class="flex-1 bg-[#0b1120] border border-slate-700/90 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 outline-none" />
-            <button onclick="addQuickNote()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-amber-500 hover:text-slate-950 border border-slate-700 text-amber-400 text-xs font-bold transition active:scale-95 shrink-0">
-              Simpan
-            </button>
-          </div>
-
-          <!-- Notes List -->
-          <div class="space-y-2">
-            ${notesList.length === 0 ? `
-              <div class="text-center py-4 bg-[#0b1120]/60 border border-slate-800/80 rounded-xl text-xs text-slate-500">
-                Tiada catatan lagi. Tambah nota kutipan atau peringatan di atas.
-              </div>
-            ` : notesList.map((note, index) => `
-              <div class="bg-[#0b1120]/90 border ${index === 0 ? 'border-amber-500/30' : 'border-slate-800'} rounded-xl p-3 flex items-start justify-between gap-2.5 group">
-                <div onclick="openEditNoteModal('${note.id}')" class="cursor-pointer flex-1 min-w-0">
-                  <p class="text-xs sm:text-sm text-slate-100 leading-relaxed whitespace-pre-line break-words">${esc(note.text)}</p>
-                  ${note.updatedAt ? `<span class="inline-block mt-1 text-[10px] font-mono text-slate-500">${esc(note.updatedAt)} • Tekan untuk edit</span>` : ''}
-                </div>
-                <div class="flex items-center gap-1 shrink-0">
-                  <button onclick="openEditNoteModal('${note.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition" title="Edit Nota">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                  </button>
-                  <button onclick="deleteNote('${note.id}')" class="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-800 transition" title="Padam Nota">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                  </button>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-
-          <!-- Quick Rider Payment Pills Preview -->
-          <div class="pt-2 border-t border-slate-800/80">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-[11px] font-semibold text-slate-400">Status Kutipan Ahli (Tekan untuk tukar):</span>
-              <button onclick="switchTab('ahli')" class="text-[11px] font-bold text-amber-400 hover:underline">Urus Detail →</button>
-            </div>
-            <div class="flex flex-wrap gap-1.5">
-              ${trip.riders.map(r => `
-                <button onclick="toggleRiderPaid('${r.id}')"
-                  class="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition active:scale-95 ${
-                    r.paid
-                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                      : 'bg-[#0b1120] border-slate-800 text-slate-400 hover:border-slate-600'
-                  }">
-                  ${r.paid ? '✓' : '○'} ${esc(r.name)}
-                </button>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-
-        <!-- Next Checkpoint Quick Action Card -->
-        ${nextCp ? `
-        <div class="bg-[#162032] border border-emerald-500/30 rounded-2xl p-4 shadow-md">
-          <div class="flex items-center justify-between gap-2 mb-2">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              Checkpoint Seterusnya • ${esc(nextCpDay)}
-            </span>
-            <span class="px-2 py-0.5 rounded-md bg-slate-800 text-amber-400 font-mono text-xs font-bold">${esc(nextCp.time)}</span>
-          </div>
-          <p class="text-sm font-bold text-white leading-snug">${esc(nextCp.activity)}</p>
-          ${nextCp.comment ? `<p class="text-xs text-slate-400 mt-1">${esc(nextCp.comment)}</p>` : ''}
-          <div class="flex items-center gap-2 mt-3">
-            <button onclick="quickCompleteNextCp('${nextCp.id}')" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 shadow-lg shadow-emerald-950/50">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-              Tanda Selesai
-            </button>
-            <button onclick="switchTab('tentatif')" class="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
-              Semua Tentatif
-            </button>
-          </div>
-        </div>
-        ` : `
-        <div class="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-4 text-center">
-          <p class="text-sm font-bold text-emerald-400">Semua Checkpoint Konvoi Telah Selesai! 🎉</p>
-          <p class="text-xs text-slate-400 mt-1">Selamat sampai ke destinasi masing-masing.</p>
-        </div>
-        `}
-
-        <!-- Homestay Card -->
-        ${trip.homestay && trip.homestay.name ? `
-        <div class="bg-[#162032] border border-slate-800 rounded-2xl p-4 space-y-3">
-          <div class="flex items-start gap-3">
-            <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-              </svg>
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Penginapan Utama</div>
-              <h3 class="text-sm sm:text-base font-bold text-white mt-0.5">${esc(trip.homestay.name)}</h3>
-              ${trip.homestay.cost ? `<span class="inline-block mt-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-semibold">${esc(trip.homestay.cost)}</span>` : ''}
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2.5 pt-1">
-            ${trip.homestay.gmap ? `
-            <a href="${esc(trip.homestay.gmap)}" target="_blank" rel="noopener noreferrer"
-              class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-xs font-bold transition active:scale-95">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-              Google Maps
-            </a>` : ''}
-            ${trip.homestay.waze ? `
-            <a href="${esc(trip.homestay.waze)}" target="_blank" rel="noopener noreferrer"
-              class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition active:scale-95">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-              Waze
-            </a>` : ''}
-          </div>
-        </div>
-        ` : ''}
-
-        <!-- Amaran Jarak Minyak (Fuel Range Alert) -->
-        <div class="bg-amber-950/25 border border-amber-500/40 rounded-2xl p-4 space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 text-amber-400">
-              <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-              </svg>
-              <h3 class="text-sm font-extrabold uppercase tracking-wide">Amaran Jarak Minyak</h3>
-            </div>
-            <button onclick="switchTab('ahli')" class="text-xs font-bold text-amber-400 hover:underline">Kalkulator KM →</button>
-          </div>
-
-          <p class="text-xs text-slate-300 leading-relaxed">
-            ${esc(trip.fuelAlertNotes || 'Pantau jarak tangki kecil supaya konvoi tidak terputus di lebuh raya.')}
-          </p>
-
-          ${lowRangeRiders.length > 0 ? `
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-            ${lowRangeRiders.map(r => `
-              <div class="bg-[#0b1120]/90 border border-amber-500/30 rounded-xl p-3 flex items-center justify-between gap-2">
-                <div>
-                  <div class="text-xs font-bold text-white">${esc(r.name)} <span class="text-amber-400">(${esc(r.bike)})</span></div>
-                  <div class="text-[11px] text-slate-400 mt-0.5">${esc(r.fuelNote)}</div>
-                </div>
-                <span class="shrink-0 px-2 py-1 rounded-lg bg-amber-500/15 text-amber-400 font-mono text-xs font-bold">
-                  ${r.maxKm}KM
-                </span>
-              </div>
-            `).join('')}
-          </div>
-          ` : ''}
-        </div>
-      `;
-    }
-
-    function quickCompleteNextCp(cpId) {
-      const trip = getTrip();
-      for (const d of trip.days) {
-        const cp = d.checkpoints.find(c => c.id === cpId);
-        if (cp) {
-          cp.done = true;
-          saveState();
-          render();
-          showToast(`Selesai: ${cp.time} — ${cp.activity.substring(0, 35)}...`);
-          break;
-        }
-      }
-    }
-
-    // =========================================================================
-    // NOTES / CATATAN MANAGEMENT FUNCTIONS
-    // =========================================================================
-    function formatNowTimestamp() {
-      const now = new Date();
-      return now.toLocaleDateString('ms-MY', { day: '2-digit', month: 'short' }) + ' ' +
-        now.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function addQuickNote() {
-      const input = document.getElementById('quick-note-input');
-      if (!input) return;
-      const text = input.value.trim();
-      if (!text) {
-        showToast("Sila tulis catatan terlebih dahulu.", "error");
-        return;
-      }
-      const trip = getTrip();
-      if (!Array.isArray(trip.notes)) trip.notes = [];
-      trip.notes.unshift({
-        id: 'note-' + Date.now(),
-        text,
-        updatedAt: formatNowTimestamp()
-      });
-      trip.paymentNote = trip.notes[0].text;
-      saveState();
-      render();
-      showToast("Catatan berjaya disimpan!");
-    }
-
-    function openAddNoteModal() {
-      openModal(`
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-extrabold text-white">Tambah Catatan / Info Kutipan</h3>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Isi Catatan</label>
-            <textarea id="modal-note-text" rows="4" placeholder="Contoh: Pembayaran RM100 kepada Epul (Deposit RM100 + Homestay RM400)..." class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none"></textarea>
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="saveNewModalNote()" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-extrabold">Simpan Nota</button>
-        </div>
-      `);
-      setTimeout(() => document.getElementById('modal-note-text')?.focus(), 50);
-    }
-
-    function saveNewModalNote() {
-      const text = document.getElementById('modal-note-text').value.trim();
-      if (!text) {
-        showToast("Sila masukkan teks catatan.", "error");
-        return;
-      }
-      const trip = getTrip();
-      if (!Array.isArray(trip.notes)) trip.notes = [];
-      trip.notes.unshift({
-        id: 'note-' + Date.now(),
-        text,
-        updatedAt: formatNowTimestamp()
-      });
-      trip.paymentNote = trip.notes[0].text;
-      saveState();
-      closeModal();
-      render();
-      showToast("Nota baru ditambah!");
-    }
-
-    function openEditNoteModal(noteId) {
-      const trip = getTrip();
-      const note = (trip.notes || []).find(n => n.id === noteId);
-      if (!note) return;
-
-      openModal(`
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-extrabold text-white">Edit Catatan Konvoi</h3>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Teks Catatan / Kutipan</label>
-            <textarea id="edit-note-textarea" rows="4" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none">${esc(note.text)}</textarea>
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button onclick="deleteNote('${note.id}'); closeModal();" class="px-3 py-2.5 rounded-xl bg-red-950/80 border border-red-500/40 text-red-300 text-xs font-bold">Padam</button>
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="updateNote('${note.id}')" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-extrabold">Kemaskini</button>
-        </div>
-      `);
-      setTimeout(() => document.getElementById('edit-note-textarea')?.focus(), 50);
-    }
-
-    function updateNote(noteId) {
-      const trip = getTrip();
-      const note = (trip.notes || []).find(n => n.id === noteId);
-      if (!note) return;
-      const newText = document.getElementById('edit-note-textarea').value.trim();
-      if (!newText) {
-        showToast("Catatan tidak boleh kosong.", "error");
-        return;
-      }
-      note.text = newText;
-      note.updatedAt = "Diedit " + formatNowTimestamp();
-      if (trip.notes[0]?.id === noteId) {
-        trip.paymentNote = newText;
-      }
-      saveState();
-      closeModal();
-      render();
-      showToast("Catatan dikemaskini!");
-    }
-
-    function deleteNote(noteId) {
-      const trip = getTrip();
-      trip.notes = (trip.notes || []).filter(n => n.id !== noteId);
-      trip.paymentNote = trip.notes.length > 0 ? trip.notes[0].text : '';
-      saveState();
-      render();
-      showToast("Catatan dipadam.", "warning");
-    }
-
-    // =========================================================================
-    // VIEW 2: TENTATIF & LALUAN (ITINERARY)
-    // =========================================================================
-    function renderTentatif(trip) {
-      if (!trip.days || trip.days.length === 0) {
-        return `<div class="text-center py-10 text-slate-400 text-sm">Tiada data tentatif dijumpai.</div>`;
-      }
-      if (selectedDayIndex >= trip.days.length) selectedDayIndex = 0;
-      const activeDay = trip.days[selectedDayIndex];
-      const doneCount = activeDay.checkpoints.filter(c => c.done).length;
-      const totalCount = activeDay.checkpoints.length;
-
-      return `
-        <!-- Day Selector Pills -->
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          ${trip.days.map((d, idx) => {
-            const isSelected = idx === selectedDayIndex;
-            const dDone = d.checkpoints.filter(c => c.done).length;
-            const dTot = d.checkpoints.length;
-            return `
-              <button onclick="selectDay(${idx})"
-                class="flex-1 min-w-[105px] py-2.5 px-3 rounded-xl border text-left transition active:scale-95 ${
-                  isSelected
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20'
-                    : 'bg-[#162032] text-slate-300 border-slate-800 hover:border-slate-700'
-                }">
-                <div class="flex items-center justify-between">
-                  <span class="text-xs font-extrabold">${esc(d.label)}</span>
-                  <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${isSelected ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-slate-400'}">${dDone}/${dTot}</span>
-                </div>
-                <div class="text-[11px] font-medium truncate mt-0.5 ${isSelected ? 'text-slate-900' : 'text-slate-400'}">${esc(d.subLabel)}</div>
-              </button>
-            `;
-          }).join('')}
-        </div>
-
-        <!-- Day Header & Full-Day Route Button -->
-        <div class="bg-[#162032] border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base font-extrabold text-white">${esc(activeDay.label)} — ${esc(activeDay.subLabel)}</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Progress Hari Ini: <span class="font-mono font-bold text-emerald-400">${doneCount}/${totalCount}</span> checkpoint</p>
-          </div>
-          <div class="flex items-center gap-2">
-            ${activeDay.fullRouteGmap ? `
-              <a href="${esc(activeDay.fullRouteGmap)}" target="_blank" rel="noopener noreferrer"
-                class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition active:scale-95 shadow-md">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-                Laluan Penuh (Maps)
-              </a>
-            ` : ''}
-            <button onclick="openAddCheckpointModal()"
-              class="inline-flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 text-xs font-bold transition active:scale-95">
-              + Tambah
-            </button>
-          </div>
-        </div>
-
-        <!-- Timeline Cards -->
-        <div class="relative pl-4 sm:pl-5 space-y-3 before:content-[''] before:absolute before:left-[7px] sm:before:left-[9px] before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-800">
-          ${activeDay.checkpoints.map((cp) => {
-            const isFuel = /minyak|petronas|shell|full tank/i.test(cp.activity + ' ' + cp.comment);
-            return `
-              <div class="relative bg-[#162032] border ${cp.done ? 'border-emerald-500/40 bg-emerald-950/10' : isFuel ? 'border-amber-500/40' : 'border-slate-800'} rounded-2xl p-4 transition shadow-sm">
-                <!-- Timeline Dot -->
-                <span class="absolute -left-[14px] sm:-left-[16px] top-5 w-3.5 h-3.5 rounded-full border-2 border-[#0b1120] ${cp.done ? 'bg-emerald-400' : isFuel ? 'bg-amber-400' : 'bg-slate-600'}"></span>
-
-                <div class="flex items-start justify-between gap-2">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="px-2.5 py-1 rounded-lg bg-[#0b1120] border border-slate-700/80 font-mono text-xs font-bold ${cp.done ? 'text-emerald-400' : 'text-amber-400'}">
-                      ${esc(cp.time)}
-                    </span>
-                    ${isFuel ? `<span class="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold uppercase">⛽ Pitstop Minyak</span>` : ''}
-                  </div>
-
-                  <!-- Edit Note Button -->
-                  <button onclick="openEditCheckpointModal('${cp.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="Edit Catatan">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                  </button>
-                </div>
-
-                <h3 class="text-sm font-bold mt-2 leading-snug ${cp.done ? 'line-through text-slate-400' : 'text-white'}">
-                  ${esc(cp.activity)}
-                </h3>
-
-                ${cp.comment ? `
-                  <p class="text-xs text-slate-400 mt-1.5 leading-relaxed bg-[#0b1120]/60 p-2.5 rounded-xl border border-slate-800/80">
-                    ${linkifyText(cp.comment)}
-                  </p>
-                ` : ''}
-
-                <div class="flex items-center gap-2 mt-3 pt-2 border-t border-slate-800/80">
-                  <button onclick="toggleCheckpoint('${cp.id}')"
-                    class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 ${
-                      cp.done
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-200 border border-slate-700'
-                    }">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    ${cp.done ? 'Selesai / Checked-in' : 'Selesai / Check-in'}
-                  </button>
-
-                  ${cp.mapUrl ? `
-                    <a href="${esc(cp.mapUrl)}" target="_blank" rel="noopener noreferrer"
-                      class="py-2.5 px-3.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition active:scale-95">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                      Maps
-                    </a>
-                  ` : ''}
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
-    }
-
-    function selectDay(idx) {
-      selectedDayIndex = idx;
-      render();
-    }
-
-    function toggleCheckpoint(cpId) {
-      const trip = getTrip();
-      const day = trip.days[selectedDayIndex];
-      const cp = day.checkpoints.find(c => c.id === cpId);
-      if (cp) {
-        cp.done = !cp.done;
-        saveState();
-        render();
-        if (cp.done) showToast(`Check-in: ${cp.time}`);
-      }
-    }
-
-    function openAddCheckpointModal() {
-      openModal(`
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-extrabold text-white">Tambah Checkpoint Baru</h3>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Masa (cth: 16:00)</label>
-            <input id="new-cp-time" type="text" placeholder="16:00" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Aktiviti / Lokasi</label>
-            <input id="new-cp-act" type="text" placeholder="Singgah minum kopi / isi minyak..." class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Komen / Jarak (Opsyenal)</label>
-            <textarea id="new-cp-comment" rows="2" placeholder="Catatan tambahan..." class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none"></textarea>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Pautan Google Maps (Opsyenal)</label>
-            <input id="new-cp-map" type="url" placeholder="https://maps.app.goo.gl/..." class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none" />
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="saveNewCheckpoint()" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-extrabold">Simpan</button>
-        </div>
-      `);
-    }
-
-    function saveNewCheckpoint() {
-      const time = document.getElementById('new-cp-time').value.trim() || "00:00";
-      const activity = document.getElementById('new-cp-act').value.trim();
-      const comment = document.getElementById('new-cp-comment').value.trim();
-      const mapUrl = document.getElementById('new-cp-map').value.trim();
-      if (!activity) {
-        showToast("Sila masukkan nama aktiviti.", "error");
-        return;
-      }
-      const trip = getTrip();
-      trip.days[selectedDayIndex].checkpoints.push({
-        id: 'cp-' + Date.now(),
-        time,
-        activity,
-        comment,
-        mapUrl,
-        done: false
-      });
-      saveState();
-      closeModal();
-      render();
-      showToast("Checkpoint berjaya ditambah!");
-    }
-
-    function openEditCheckpointModal(cpId) {
-      const trip = getTrip();
-      const day = trip.days[selectedDayIndex];
-      const cp = day.checkpoints.find(c => c.id === cpId);
-      if (!cp) return;
-
-      openModal(`
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-extrabold text-white">Edit Checkpoint</h3>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Masa</label>
-            <input id="edit-cp-time" type="text" value="${esc(cp.time)}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Aktiviti</label>
-            <input id="edit-cp-act" type="text" value="${esc(cp.activity)}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Komen / Nota</label>
-            <textarea id="edit-cp-comment" rows="3" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none">${esc(cp.comment)}</textarea>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Pautan Maps</label>
-            <input id="edit-cp-map" type="url" value="${esc(cp.mapUrl)}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:border-amber-500 outline-none" />
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button onclick="deleteCheckpoint('${cp.id}')" class="px-3 py-2.5 rounded-xl bg-red-950/80 border border-red-500/40 text-red-300 text-xs font-bold">Padam</button>
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="updateCheckpoint('${cp.id}')" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-extrabold">Kemaskini</button>
-        </div>
-      `);
-    }
-
-    function updateCheckpoint(cpId) {
-      const trip = getTrip();
-      const day = trip.days[selectedDayIndex];
-      const cp = day.checkpoints.find(c => c.id === cpId);
-      if (!cp) return;
-      cp.time = document.getElementById('edit-cp-time').value.trim() || cp.time;
-      cp.activity = document.getElementById('edit-cp-act').value.trim() || cp.activity;
-      cp.comment = document.getElementById('edit-cp-comment').value.trim();
-      cp.mapUrl = document.getElementById('edit-cp-map').value.trim();
-      saveState();
-      closeModal();
-      render();
-      showToast("Checkpoint dikemaskini!");
-    }
-
-    function deleteCheckpoint(cpId) {
-      const trip = getTrip();
-      const day = trip.days[selectedDayIndex];
-      day.checkpoints = day.checkpoints.filter(c => c.id !== cpId);
-      saveState();
-      closeModal();
-      render();
-      showToast("Checkpoint dipadam.", "warning");
-    }
-
-    // =========================================================================
-    // VIEW 3: AHLI & MINYAK (RIDERS & FUEL MONITOR)
-    // =========================================================================
-    function renderAhli(trip) {
-      const odo = Number(trip.tripOdometerKm) || 0;
-      const paidCount = trip.riders.filter(r => r.paid).length;
-
-      return `
-        <!-- Interactive Fuel Range & Trip Odometer Calculator -->
-        <div class="bg-gradient-to-br from-[#162032] to-[#0f172a] border border-amber-500/40 rounded-2xl p-4 shadow-lg space-y-3">
-          <div class="flex items-center justify-between gap-2">
-            <div>
-              <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400">⛽ Kalkulator Jarak & Baki Tangki</span>
-              <h2 class="text-sm sm:text-base font-extrabold text-white mt-0.5">Simulasi Trip Odometer (Sejak Full Tank)</h2>
-            </div>
-            <button onclick="updateOdometer(0)" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 border border-slate-700 transition">
-              Reset 0 KM
-            </button>
-          </div>
-
-          <div class="bg-[#0b1120] border border-slate-800 rounded-xl p-3 space-y-3">
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-xs text-slate-400 font-medium">Jarak Perjalanan:</span>
-              <div class="flex items-center gap-1.5">
-                <input type="number" min="0" max="450" value="${odo}"
-                  oninput="updateOdometer(this.value)"
-                  class="w-20 bg-[#162032] border border-amber-500/50 rounded-lg px-2.5 py-1 text-right font-mono text-base font-extrabold text-amber-400 focus:outline-none" />
-                <span class="text-xs font-bold text-slate-400">KM</span>
-              </div>
-            </div>
-            <input type="range" min="0" max="400" step="5" value="${Math.min(odo, 400)}"
-              oninput="updateOdometer(this.value)" class="w-full" />
-            <div class="flex justify-between text-[10px] font-mono text-slate-500">
-              <span>0 KM</span>
-              <span>100 KM</span>
-              <span>200 KM</span>
-              <span>300 KM</span>
-              <span>400 KM</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Riders Header & Kutipan Summary -->
-        <div class="flex items-center justify-between gap-2">
-          <div>
-            <h3 class="text-sm font-extrabold text-white">Senarai Ahli Konvoi (${trip.riders.length})</h3>
-            <p class="text-xs text-slate-400">Bayaran Homestay: <span class="text-emerald-400 font-bold font-mono">${paidCount}/${trip.riders.length}</span> (RM${paidCount * 100})</p>
-          </div>
-          <button onclick="openAddRiderModal()" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition active:scale-95">
-            + Ahli
-          </button>
-        </div>
-
-        <!-- Riders List Cards -->
-        <div class="space-y-3">
-          ${trip.riders.map(r => {
-            let statusBadge = '';
-            let progressHtml = '';
-
-            if (r.maxKm && r.maxKm > 0) {
-              const remaining = r.maxKm - odo;
-              const pctRemaining = Math.max(0, Math.min(100, Math.round((remaining / r.maxKm) * 100)));
-              const warnThreshold = r.warnKm || Math.round(r.maxKm * 0.78);
-
-              if (odo >= r.maxKm) {
-                statusBadge = `<span class="px-2 py-0.5 rounded-md bg-red-500/20 border border-red-500/50 text-red-300 text-[11px] font-extrabold animate-pulse">🚨 HABIS MINYAK! (${remaining} KM)</span>`;
-              } else if (odo >= warnThreshold) {
-                statusBadge = `<span class="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-extrabold">⚠️ 2 BAR / ISI SEGERA (Baki ~${remaining} KM)</span>`;
-              } else {
-                statusBadge = `<span class="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">✅ Selamat (Baki ~${remaining} KM)</span>`;
-              }
-
-              const barColor = odo >= r.maxKm ? 'bg-red-500' : odo >= warnThreshold ? 'bg-amber-500' : 'bg-emerald-500';
-              progressHtml = `
-                <div class="mt-2.5">
-                  <div class="flex justify-between text-[11px] font-mono mb-1">
-                    <span class="text-slate-400">Baki Tangki Anggaran</span>
-                    <span class="font-bold text-slate-200">${Math.max(0, remaining)} / ${r.maxKm} KM</span>
-                  </div>
-                  <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div class="${barColor} h-full rounded-full transition-all duration-200" style="width: ${pctRemaining}%"></div>
-                  </div>
-                </div>
-              `;
-            } else {
-              statusBadge = `<span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-semibold">🛵 Pembonceng (Pillion)</span>`;
-            }
-
-            return `
-              <div class="bg-[#162032] border ${r.maxKm && odo >= r.maxKm ? 'border-red-500/60' : r.maxKm && odo >= (r.warnKm || r.maxKm*0.78) ? 'border-amber-500/50' : 'border-slate-800'} rounded-2xl p-4 space-y-2.5">
-                <div class="flex items-start justify-between gap-2">
-                  <div>
-                    <div class="flex items-center gap-2">
-                      <span class="w-6 h-6 rounded-lg bg-slate-800 text-amber-400 font-mono text-xs font-bold flex items-center justify-center">${r.no}</span>
-                      <h4 class="text-base font-extrabold text-white">${esc(r.name)}</h4>
-                      <span class="px-2 py-0.5 rounded-md bg-slate-800/90 border border-slate-700 text-xs font-semibold text-slate-200">${esc(r.bike)}</span>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2 mt-2">
-                      ${statusBadge}
-                      ${r.tumpang && r.tumpang !== '-' ? `<span class="px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold">Tumpang: ${esc(r.tumpang)}</span>` : ''}
-                    </div>
-                  </div>
-
-                  <button onclick="openEditRiderModal('${r.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                  </button>
-                </div>
-
-                ${r.fuelNote ? `<p class="text-xs text-slate-400 bg-[#0b1120]/70 px-3 py-2 rounded-xl border border-slate-800/80">${esc(r.fuelNote)}</p>` : ''}
-
-                ${progressHtml}
-
-                <div class="pt-2 border-t border-slate-800/80 space-y-2">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="text-[11px] text-slate-400">Status Kutipan / Homestay</span>
-                    <button onclick="toggleRiderPaid('${r.id}')"
-                      class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 ${
-                        r.paid
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-200 border border-slate-700'
-                      }">
-                      ${r.paid ? '✅ Dah Bayar' : '💳 Tandakan Bayar'}
-                    </button>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <input type="text" value="${esc(r.paymentRemark || '')}"
-                      onchange="updateRiderPaymentRemark('${r.id}', this.value)"
-                      placeholder="Nota bayaran ahli (cth: Transfer RM100 ke Epul)..."
-                      class="flex-1 bg-[#0b1120] border border-slate-800 focus:border-amber-500 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 outline-none" />
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
-    }
-
-    function updateRiderPaymentRemark(riderId, val) {
-      const trip = getTrip();
-      const rider = trip.riders.find(r => r.id === riderId);
-      if (rider) {
-        rider.paymentRemark = val.trim();
-        saveState();
-        showToast(`Nota bayaran ${rider.name} disimpan.`);
-      }
-    }
-
-    function updateOdometer(val) {
-      const trip = getTrip();
-      let num = parseInt(val, 10);
-      if (isNaN(num) || num < 0) num = 0;
-      if (num > 500) num = 500;
-      trip.tripOdometerKm = num;
-      saveState();
-      render();
-    }
-
-    function toggleRiderPaid(riderId) {
-      const trip = getTrip();
-      const rider = trip.riders.find(r => r.id === riderId);
-      if (rider) {
-        rider.paid = !rider.paid;
-        saveState();
-        render();
-        showToast(`${rider.name}: ${rider.paid ? 'Bayaran RM100 direkodkan!' : 'Status bayaran dibatalkan.'}`);
-      }
-    }
-
-    function openAddRiderModal() {
-      openModal(`
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-extrabold text-white">Tambah Ahli Konvoi</h3>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Nama Ahli</label>
-            <input id="r-name" type="text" placeholder="cth: Hakim" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Jenis Motor</label>
-              <input id="r-bike" type="text" placeholder="cth: RS150R / N/a" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Status Tumpang</label>
-              <input id="r-tumpang" type="text" placeholder="- / Ya / Ngn Kamal" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Full Tank (KM)</label>
-              <input id="r-maxkm" type="number" placeholder="cth: 250 (kosong jika tumpang)" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Amaran 2 Bar (KM)</label>
-              <input id="r-warnkm" type="number" placeholder="cth: 190" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Nota Tangki / Helmet</label>
-            <input id="r-note" type="text" placeholder="cth: 250KM Full tank" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="saveNewRider()" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-extrabold">Simpan Ahli</button>
-        </div>
-      `);
-    }
-
-    function saveNewRider() {
-      const name = document.getElementById('r-name').value.trim();
-      if (!name) {
-        showToast("Sila masukkan nama ahli.", "error");
-        return;
-      }
-      const bike = document.getElementById('r-bike').value.trim() || "N/a";
-      const tumpang = document.getElementById('r-tumpang').value.trim() || "-";
-      const maxKmRaw = parseInt(document.getElementById('r-maxkm').value, 10);
-      const warnKmRaw = parseInt(document.getElementById('r-warnkm').value, 10);
-      const fuelNote = document.getElementById('r-note').value.trim();
-
-      const trip = getTrip();
-      trip.riders.push({
-        id: 'r-' + Date.now(),
-        no: trip.riders.length + 1,
-        name,
-        bike,
-        tumpang,
-        fuelNote,
-        maxKm: isNaN(maxKmRaw) ? null : maxKmRaw,
-        warnKm: isNaN(warnKmRaw) ? (isNaN(maxKmRaw) ? null : Math.round(maxKmRaw * 0.78)) : warnKmRaw,
-        paid: false,
-        paymentRemark: ""
-      });
-      saveState();
-      closeModal();
-      render();
-      showToast(`Ahli ${name} ditambah!`);
-    }
-
-    function openEditRiderModal(riderId) {
-      const trip = getTrip();
-      const r = trip.riders.find(x => x.id === riderId);
-      if (!r) return;
-      openModal(`
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-extrabold text-white">Edit Ahli: ${esc(r.name)}</h3>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Nama Ahli</label>
-            <input id="er-name" type="text" value="${esc(r.name)}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Jenis Motor</label>
-              <input id="er-bike" type="text" value="${esc(r.bike)}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Tumpang</label>
-              <input id="er-tumpang" type="text" value="${esc(r.tumpang)}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Full Tank (KM)</label>
-              <input id="er-maxkm" type="number" value="${r.maxKm || ''}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Amaran 2 Bar (KM)</label>
-              <input id="er-warnkm" type="number" value="${r.warnKm || ''}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Nota Tangki</label>
-            <input id="er-note" type="text" value="${esc(r.fuelNote)}" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button onclick="deleteRider('${r.id}')" class="px-3 py-2.5 rounded-xl bg-red-950/80 border border-red-500/40 text-red-300 text-xs font-bold">Padam</button>
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="updateRider('${r.id}')" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-extrabold">Simpan</button>
-        </div>
-      `);
-    }
-
-    function updateRider(riderId) {
-      const trip = getTrip();
-      const r = trip.riders.find(x => x.id === riderId);
-      if (!r) return;
-      r.name = document.getElementById('er-name').value.trim() || r.name;
-      r.bike = document.getElementById('er-bike').value.trim() || "N/a";
-      r.tumpang = document.getElementById('er-tumpang').value.trim() || "-";
-      const maxKmRaw = parseInt(document.getElementById('er-maxkm').value, 10);
-      const warnKmRaw = parseInt(document.getElementById('er-warnkm').value, 10);
-      r.maxKm = isNaN(maxKmRaw) ? null : maxKmRaw;
-      r.warnKm = isNaN(warnKmRaw) ? (isNaN(maxKmRaw) ? null : Math.round(maxKmRaw * 0.78)) : warnKmRaw;
-      r.fuelNote = document.getElementById('er-note').value.trim();
-      saveState();
-      closeModal();
-      render();
-      showToast("Maklumat ahli dikemaskini!");
-    }
-
-    function deleteRider(riderId) {
-      const trip = getTrip();
-      trip.riders = trip.riders.filter(x => x.id !== riderId).map((x, i) => ({ ...x, no: i + 1 }));
-      saveState();
-      closeModal();
-      render();
-      showToast("Ahli dipadam.", "warning");
-    }
-
-    // =========================================================================
-    // VIEW 4: BARANGAN & IMPORT EXCEL (.XLSX)
-    // =========================================================================
-    function renderBarang(trip) {
-      const checkedCount = trip.items.filter(i => i.checked).length;
-      const totalCount = trip.items.length;
-
-      // Filter items
-      const filteredItems = trip.items.filter(item => {
-        const matchesSearch = (item.name + ' ' + item.pic + ' ' + item.comment).toLowerCase().includes(itemSearch.toLowerCase());
-        if (!matchesSearch) return false;
-        if (itemFilter === 'pending') return !item.checked;
-        if (itemFilter === 'pic') return item.pic && item.pic.trim() !== '';
-        return true;
-      });
-
-      const tripKeys = Object.keys(savedTrips);
-
-      return `
-        <!-- Checklist Section -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <div>
-              <h2 class="text-base font-extrabold text-white">Checklist Barangan Konvoi</h2>
-              <p class="text-xs text-slate-400">Siap Disediakan: <span class="font-mono font-bold text-emerald-400">${checkedCount}/${totalCount}</span></p>
-            </div>
-            <button onclick="openAddItemModal()" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition active:scale-95">
-              + Barang
-            </button>
-          </div>
-
-          <!-- Search & Filter Pills -->
-          <div class="space-y-2">
-            <input type="text" value="${esc(itemSearch)}" oninput="setItemSearch(this.value)"
-              placeholder="Cari barang, pembawa (cth: Epul, Irfan)..."
-              class="w-full bg-[#162032] border border-slate-800 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none" />
-
-            <div class="flex gap-2 overflow-x-auto no-scrollbar">
-              <button onclick="setItemFilter('all')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${itemFilter === 'all' ? 'bg-amber-500 text-slate-950' : 'bg-[#162032] text-slate-400 border border-slate-800'}">
-                Semua (${totalCount})
-              </button>
-              <button onclick="setItemFilter('pending')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${itemFilter === 'pending' ? 'bg-amber-500 text-slate-950' : 'bg-[#162032] text-slate-400 border border-slate-800'}">
-                Belum Sedia (${totalCount - checkedCount})
-              </button>
-              <button onclick="setItemFilter('pic')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${itemFilter === 'pic' ? 'bg-amber-500 text-slate-950' : 'bg-[#162032] text-slate-400 border border-slate-800'}">
-                Ada PIC / Catatan (${trip.items.filter(i => i.pic && i.pic.trim() !== '').length})
-              </button>
-            </div>
-          </div>
-
-          <!-- Checklist Items -->
-          <div class="space-y-2">
-            ${filteredItems.length === 0 ? `
-              <div class="text-center py-6 bg-[#162032] border border-slate-800 rounded-2xl text-xs text-slate-400">
-                Tiada barangan sepadan dengan carian/penapis.
-              </div>
-            ` : filteredItems.map(item => `
-              <div class="bg-[#162032] border ${item.checked ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-slate-800'} rounded-xl p-3 flex items-center justify-between gap-3 transition">
-                <button onclick="toggleItemCheck('${item.id}')" class="flex items-center gap-3 flex-1 text-left min-w-0">
-                  <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition ${
-                    item.checked ? 'bg-emerald-500 border-emerald-500 text-slate-950' : 'border-slate-600 bg-[#0b1120]'
-                  }">
-                    ${item.checked ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>` : ''}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="text-sm font-bold truncate ${item.checked ? 'line-through text-slate-500' : 'text-white'}">
-                      <span class="text-xs font-mono text-slate-500 mr-1">${item.no}.</span>${esc(item.name)}
-                    </div>
-                    ${(item.pic || item.comment) ? `
-                      <div class="flex flex-wrap items-center gap-1.5 mt-1">
-                        ${item.pic ? `<span class="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-bold">PIC: ${esc(item.pic)}</span>` : ''}
-                        ${item.comment ? `<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-medium">${esc(item.comment)}</span>` : ''}
-                      </div>
-                    ` : ''}
-                  </div>
-                </button>
-
-                <button onclick="deleteItem('${item.id}')" class="p-2 text-slate-500 hover:text-red-400 transition shrink-0" title="Padam Barang">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                </button>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-
-        <!-- Excel Importer & Trip Manager Section -->
-        <div id="excel-upload-box" class="bg-[#162032] border border-slate-700/80 rounded-2xl p-4 space-y-4 mt-6">
-          <div class="flex items-start gap-3">
-            <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            </div>
-            <div>
-              <h3 class="text-sm font-extrabold text-white">Import Fail Excel Konvoi (.xlsx)</h3>
-              <p class="text-xs text-slate-400 mt-0.5">Muat naik fail Excel konvoi lain dari telefon anda (tab: <span class="text-slate-300 font-mono">Ahli, Day1, Day2, Day3, Barangan</span>). Diproses 100% offline dalam browser!</p>
-            </div>
-          </div>
-
-          <label class="block w-full cursor-pointer border-2 border-dashed border-slate-700 hover:border-amber-500/70 bg-[#0b1120]/80 rounded-xl p-4 text-center transition">
-            <input type="file" accept=".xlsx,.xls" onchange="handleExcelUpload(event)" class="hidden" />
-            <div class="text-xs font-bold text-amber-400">📂 Pilih Fail Excel (.xlsx) dari Telefon</div>
-            <div class="text-[11px] text-slate-500 mt-1">Tekan di sini untuk pilih fail</div>
-          </label>
-
-          <!-- Saved Trips Switcher -->
-          <div class="space-y-2 pt-2 border-t border-slate-800">
-            <div class="text-xs font-bold text-slate-300">Senarai Konvoi Tersimpan (Offline):</div>
-            <div class="space-y-1.5">
-              ${tripKeys.map(k => {
-                const t = savedTrips[k];
-                const isAct = k === activeTripId;
-                return `
-                  <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl border ${isAct ? 'bg-amber-500/10 border-amber-500/40' : 'bg-[#0b1120] border-slate-800'}">
-                    <button onclick="switchSavedTrip('${k}')" class="text-left flex-1 min-w-0">
-                      <div class="text-xs font-bold truncate ${isAct ? 'text-amber-400' : 'text-slate-200'}">${esc(t.title)}</div>
-                      <div class="text-[10px] text-slate-500">${t.riders.length} ahli • ${t.days.length} hari</div>
-                    </button>
-                    ${k !== DEFAULT_TRIP_DATA.id ? `
-                      <button onclick="deleteSavedTrip('${k}')" class="px-2 py-1 rounded bg-red-950/60 text-red-400 text-[10px] font-bold">Padam</button>
-                    ` : `<span class="text-[10px] font-mono text-slate-500 px-2">Default</span>`}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-
-          <!-- Backup JSON & Reset -->
-          <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
-            <button onclick="exportJsonBackup()" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold text-center transition">
-              Export JSON
-            </button>
-            <label class="cursor-pointer py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold text-center transition">
-              Import JSON
-              <input type="file" accept=".json" onchange="importJsonBackup(event)" class="hidden" />
-            </label>
-            <button onclick="confirmResetDefault()" class="py-2 px-2 rounded-xl bg-red-950/70 hover:bg-red-900/70 border border-red-500/30 text-red-300 text-[11px] font-bold text-center transition">
-              Reset Asal
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    function setItemSearch(val) {
-      itemSearch = val;
-      render();
-    }
-
-    function setItemFilter(f) {
-      itemFilter = f;
-      render();
-    }
-
-    function toggleItemCheck(itemId) {
-      const trip = getTrip();
-      const item = trip.items.find(i => i.id === itemId);
-      if (item) {
-        item.checked = !item.checked;
-        saveState();
-        render();
-      }
-    }
-
-    function deleteItem(itemId) {
-      const trip = getTrip();
-      trip.items = trip.items.filter(i => i.id !== itemId).map((x, idx) => ({ ...x, no: idx + 1 }));
-      saveState();
-      render();
-      showToast("Barang dipadam.", "warning");
-    }
-
-    function openAddItemModal() {
-      openModal(`
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-extrabold text-white">Tambah Barangan</h3>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">✕</button>
-        </div>
-        <div class="space-y-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Nama Barangan</label>
-            <input id="item-name" type="text" placeholder="cth: Powerbank / Kabel Jumper" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Pembawa / Kuantiti (Opsyenal)</label>
-            <input id="item-pic" type="text" placeholder="cth: Semua / Irfan / 2 biji" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Komen (Opsyenal)</label>
-            <input id="item-comment" type="text" placeholder="cth: Wajib bawa" class="w-full bg-[#0b1120] border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500" />
-          </div>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="saveNewItem()" class="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-extrabold">Tambah</button>
-        </div>
-      `);
-    }
-
-    function saveNewItem() {
-      const name = document.getElementById('item-name').value.trim();
-      if (!name) {
-        showToast("Sila masukkan nama barangan.", "error");
-        return;
-      }
-      const pic = document.getElementById('item-pic').value.trim();
-      const comment = document.getElementById('item-comment').value.trim();
-      const trip = getTrip();
-      trip.items.push({
-        id: 'item-' + Date.now(),
-        no: trip.items.length + 1,
-        name,
-        pic,
-        comment,
-        checked: false
-      });
-      saveState();
-      closeModal();
-      render();
-      showToast(`"${name}" ditambah ke senarai!`);
-    }
-
-    // =========================================================================
-    // CLIENT-SIDE EXCEL (.XLSX) PARSER USING SHEETJS
-    // =========================================================================
-    function formatExcelTime(val) {
-      if (val === null || val === undefined || val === '') return '00:00';
-      if (typeof val === 'number') {
-        // Excel serial fraction of a day
-        const totalMinutes = Math.round(val * 24 * 60);
-        const hrs = Math.floor(totalMinutes / 60) % 24;
-        const mins = totalMinutes % 60;
-        return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-      }
-      const str = String(val).trim();
-      const match = str.match(/(\d{1,2}):(\d{2})/);
-      if (match) {
-        return `${match[1].padStart(2, '0')}:${match[2]}`;
-      }
-      return str;
-    }
-
-    function extractUrlFromText(text) {
-      if (!text) return '';
-      const match = String(text).match(/https?:\/\/[^\s]+/);
-      return match ? match[0] : '';
-    }
-
-    function handleExcelUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      if (typeof XLSX === 'undefined') {
-        showToast("Library SheetJS gagal dimuatkan. Sila semak sambungan.", "error");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-
-          const newTripId = 'trip-' + Date.now();
-          const baseTitle = file.name.replace(/\.(xlsx|xls)$/i, '');
-
-          const parsedTrip = {
-            id: newTripId,
-            title: `Konvoi ${baseTitle}`,
-            paymentNote: "Kutipan Konvoi",
-            notes: [],
-            homestay: { name: "", cost: "", gmap: "", waze: "" },
-            fuelAlertNotes: "Pantau jarak tangki kecil dalam konvoi.",
-            tripOdometerKm: 0,
-            riders: [],
-            days: [],
-            items: []
-          };
-
-          workbook.SheetNames.forEach(sheetName => {
-            const ws = workbook.Sheets[sheetName];
-            const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-            const lowerName = sheetName.toLowerCase();
-
-            // 1. Parse 'Ahli' sheet
-            if (lowerName.includes('ahli') || lowerName.includes('rider')) {
-              let headerFound = false;
-              rows.forEach(row => {
-                const c0 = String(row[0] || '').trim();
-                const c1 = String(row[1] || '').trim();
-                const c2 = String(row[2] || '').trim();
-                const c3 = String(row[3] || '').trim();
-                const c4 = String(row[4] || '').trim();
-
-                if (c0.toLowerCase().includes('bil') && c1.toLowerCase().includes('nama')) {
-                  headerFound = true;
-                  return;
-                }
-                if (c0.toLowerCase().includes('pembayaran')) {
-                  parsedTrip.paymentNote = c0;
-                  parsedTrip.notes.push({
-                    id: 'note-' + parsedTrip.notes.length + '-' + Date.now(),
-                    text: c0,
-                    updatedAt: 'Dari Excel'
-                  });
-                  return;
-                }
-                if (headerFound && c1) {
-                  // Extract maxKm & warnKm heuristically from fuel note
-                  const kmMatches = [...c4.matchAll(/(\d{2,3})\s*km/gi)].map(m => parseInt(m[1], 10));
-                  let maxKm = null;
-                  let warnKm = null;
-                  if (kmMatches.length > 0) {
-                    maxKm = Math.max(...kmMatches);
-                    warnKm = kmMatches.length > 1 ? Math.min(...kmMatches) : Math.round(maxKm * 0.78);
-                  }
-                  parsedTrip.riders.push({
-                    id: 'r-' + parsedTrip.riders.length + '-' + Date.now(),
-                    no: parsedTrip.riders.length + 1,
-                    name: c1,
-                    bike: c2 || 'N/a',
-                    tumpang: c3 || '-',
-                    fuelNote: c4,
-                    maxKm,
-                    warnKm,
-                    paid: false,
-                    paymentRemark: ""
-                  });
-                }
-              });
-            }
-
-            // 2. Parse 'Day...' sheets
-            else if (lowerName.startsWith('day') || lowerName.includes('hari')) {
-              const dayObj = {
-                id: 'day-' + parsedTrip.days.length + '-' + Date.now(),
-                label: sheetName.split(' ')[0] || sheetName,
-                subLabel: sheetName.split(' ').slice(1).join(' ') || '',
-                fullRouteGmap: '',
-                checkpoints: []
-              };
-
-              let tableStarted = false;
-              rows.forEach(row => {
-                const c0 = String(row[0] || '').trim();
-                const c1 = String(row[1] || '').trim();
-                const c2 = String(row[2] || '').trim();
-                const c3 = String(row[3] || '').trim();
-
-                if (c0.toLowerCase() === 'aktiviti' && c1) {
-                  dayObj.subLabel = c1;
-                } else if (c0.toLowerCase().includes('homestay') && c1) {
-                  if (!parsedTrip.homestay.name) parsedTrip.homestay.name = c1;
-                } else if (c0.toLowerCase().includes('gmap') && c1) {
-                  if (!parsedTrip.homestay.gmap) parsedTrip.homestay.gmap = extractUrlFromText(c1) || c1;
-                } else if (c0.toLowerCase().includes('waze') && c1) {
-                  if (!parsedTrip.homestay.waze) parsedTrip.homestay.waze = extractUrlFromText(c1) || c1;
-                } else if (c0.toLowerCase() === 'masa') {
-                  tableStarted = true;
-                } else if (tableStarted && c1) {
-                  const timeStr = formatExcelTime(row[0]);
-                  const combinedComment = [c2 ? `Backup: ${c2}` : '', c3].filter(Boolean).join(' | ');
-                  const foundUrl = extractUrlFromText(c3) || extractUrlFromText(c1);
-                  if (!dayObj.fullRouteGmap && combinedComment.toLowerCase().includes('seluruh perjalanan') && foundUrl) {
-                    dayObj.fullRouteGmap = foundUrl;
-                  }
-                  dayObj.checkpoints.push({
-                    id: 'cp-' + dayObj.checkpoints.length + '-' + Date.now(),
-                    time: timeStr,
-                    activity: c1,
-                    comment: combinedComment,
-                    mapUrl: foundUrl,
-                    done: false
-                  });
-                }
-              });
-
-              if (dayObj.checkpoints.length > 0) {
-                parsedTrip.days.push(dayObj);
-              }
-            }
-
-            // 3. Parse 'Barangan...' sheet
-            else if (lowerName.includes('barang') || lowerName.includes('checklist')) {
-              rows.forEach(row => {
-                const c0 = String(row[0] || '').trim();
-                const c1 = String(row[1] || '').trim();
-                const c2 = String(row[2] || '').trim();
-                const c3 = String(row[3] || '').trim();
-
-                if (c0.toLowerCase().includes('bil') || !c1) return;
-                parsedTrip.items.push({
-                  id: 'itm-' + parsedTrip.items.length + '-' + Date.now(),
-                  no: parsedTrip.items.length + 1,
-                  name: c1,
-                  pic: c2,
-                  comment: c3,
-                  checked: false
-                });
-              });
-            }
+    } else if (hMem >= 0) {
+      var mh = rows[hMem];
+      var cN = colOf(mh, /^(nama|name)$/), cM = colOf(mh, /motor|bike/), cT = colOf(mh, /tumpang|pillion/), cF = colOf(mh, /perjalanan|tank|jarak/);
+      for (var b = hMem + 1; b < rows.length; b++) {
+        var mr = rows[b] || [];
+        var nm = s(mr[cN]);
+        if (nm) {
+          var fuel = cF >= 0 ? s(mr[cF]) : '';
+          var kms = (fuel.match(/(\d{2,3})\s*km/ig) || []).map(function (x) { return parseInt(x, 10); });
+          var bike = s(mr[cM]);
+          trip.members.push({
+            name: nm, bike: /^n\/?a$/i.test(bike) ? '' : bike, pillion: cT >= 0 ? s(mr[cT]) : '',
+            fuel: fuel, range: kms.length ? Math.max.apply(null, kms) : 0
           });
-
-          if (parsedTrip.riders.length === 0 && parsedTrip.days.length === 0 && parsedTrip.items.length === 0) {
-            showToast("Format tab Excel tidak dikenali. Pastikan ada tab Ahli / Day1 / Barangan.", "error");
-            return;
-          }
-
-          savedTrips[newTripId] = parsedTrip;
-          activeTripId = newTripId;
-          selectedDayIndex = 0;
-          saveState();
-          switchTab('ringkasan');
-          showToast(`Fail "${file.name}" berjaya dimuat naik!`);
-        } catch (err) {
-          console.error(err);
-          showToast("Ralat membaca fail Excel. Pastikan fail .xlsx sah.", "error");
+        } else {
+          var txt = s(mr[0]);
+          if (txt && isNaN(+txt)) trip.notes.push(txt);
         }
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    function switchSavedTrip(tripId) {
-      if (savedTrips[tripId]) {
-        activeTripId = tripId;
-        selectedDayIndex = 0;
-        saveState();
-        render();
-        showToast(`Bertukar ke: ${savedTrips[tripId].title}`);
       }
+    } else {
+      trip.warnings.push('Sheet "' + name + '" was not recognised and was skipped.');
     }
+  });
 
-    function deleteSavedTrip(tripId) {
-      if (tripId === DEFAULT_TRIP_DATA.id) return;
-      delete savedTrips[tripId];
-      if (activeTripId === tripId) {
-        activeTripId = DEFAULT_TRIP_DATA.id;
-      }
-      saveState();
-      render();
-      showToast("Rekod konvoi dipadam.", "warning");
-    }
+  trip.days.sort(function (a, b) { return (a.date || 'z').localeCompare(b.date || 'z') || (a.id < b.id ? -1 : 1); });
+  trip.days.forEach(function (d, i) { d.id = 'd' + (i + 1); });
+  if (!trip.days.length) trip.warnings.push('No schedule sheet (columns "Masa" and "Aktiviti") was found.');
+  return trip;
+}
+if (typeof module !== 'undefined') module.exports = { parseTrip: parseTrip };
 
-    function exportJsonBackup() {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(savedTrips, null, 2));
-      const dlAnchor = document.createElement('a');
-      dlAnchor.setAttribute("href", dataStr);
-      dlAnchor.setAttribute("download", `konvoi_backup_${new Date().toISOString().slice(0, 10)}.json`);
-      document.body.appendChild(dlAnchor);
-      dlAnchor.click();
-      dlAnchor.remove();
-      showToast("Fail backup JSON dimuat turun!");
-    }
+</script>
+<script>
+var SAMPLE = {"name":"December 2026","days":[{"id":"d1","name":"Day1 Sabtu","label":"Day 1","sub":"Sabtu","date":"2026-12-26","title":"Day 26 December 2026","stay":"Ini Homestay ( RM400 + Desposit RM100)","gmap":"https://maps.app.goo.gl/1dqzxP5Dm6E27JpM8?g_st=aw","waze":"https://waze.com/ul/hw0zrkn6rg","rows":[{"t":"09:00","act":"Berkumpul di R&R Jejantas Sungai Buloh (Bertolak 09:30 pagi)","alt":"","note":"google maps seluruh perjalanan 1 hari\n\nhttps://maps.app.goo.gl/CEMbU3u6vEpAk4CG8"},{"t":"09:55","act":"Isi minyak di R&R Rawang Northbound, North-South Expy, 50480 Rawang, Selangor","alt":"","note":"Jarak ~27 km dari Sg Buloh (~25 minit pemanduan)"},{"t":"11:05","act":"Brunch & rehat di Nasi Bamboo Sungai Klah • Sungkai, Jalan Besar Sungkai - Slim River, Kampung Buloh Telor, 35600 Sungkai, Perak","alt":"","note":"Jarak ~79 km dari Rawang (~1 jam 10 minit). Makan & rehat hingga 12:35 tgh hari"},{"t":"12:50","act":"Isi minyak penuh di R&R Tapah (Arah Utara) [Petronas / Shell]","alt":"","note":"Jarak ~13 km dari Sungkai (~15 minit). Wajib full tank (terutama Yamaha Y15 & ADV160)"},{"t":"13:40","act":"Rehat, solat Zohor & isi minyak di Petronas Sungai Perak (Arah Utara)","alt":"","note":"Jarak ~66 km dari Tapah (~50 minit melalui Ipoh / Terowong Menora)"},{"t":"14:15","act":"Sambung perjalanan menuju ke Pulau Pinang (susur keluar Bertam / Kepala Batas)","alt":"","note":"Jarak ~120 km dari Sungai Perak (~1 jam 25 minit). (Opsyen: top-up minyak di R&R Gunung Semanggol jika perlu)"},{"t":"15:40","act":"Tiba & Check-in di Ini Homestay, Taman Penaga, Kepala Batas","alt":"","note":"Rehat & kemas barang"},{"t":"17:00","act":"Rehat bebas / bersiap untuk aktiviti petang atau makan malam","alt":"","note":"Boleh rancang makan malam sekitar Kepala Batas / Penaga"},{"t":"19:00","act":"Solat Maghrib & Isyak / Makan malam santai (pilihan sekitar Kepala Batas / Bertam)","alt":"","note":"Nikmati hidangan tempatan"},{"t":"20:30","act":"Lepak santai di Setia Fontaines Heritage Park / Bertam Street Market","alt":"","note":"Menikmati suasana lampu malam & air pancut muzikal"},{"t":"22:00","act":"Minum malam / santai bersama ahli konvoi","alt":"","note":"Borak-borak santai"},{"t":"23:30","act":"Bertolak pulang ke Ini Homestay, Taman Penaga & berehat","alt":"","note":"Tidur awal untuk persiapan hari seterusnya"},{"t":"00:00","act":"Rehat & tidur di homestay (Tengah malam)","alt":"","note":"Cas tenaga untuk persiapan perjalanan Day 2 Ahad"}]},{"id":"d2","name":"Day2 Ahad","label":"Day 2","sub":"Ahad","date":"2026-12-27","title":"Day 27 December 2026","stay":"Ini Homestay, Penaga","gmap":"https://maps.app.goo.gl/1dqzxP5Dm6E27JpM8?g_st=aw","waze":"https://waze.com/ul/hw0zrkn6rg","rows":[{"t":"09:00","act":"Bertolak dari Ini Homestay, Penaga menuju ke Georgetown (melalui Jambatan Pulau Pinang atau feri)","alt":"","note":"Mula gerak konvoi pagi dari Penaga ke pulau"},{"t":"10:00","act":"Sarapan / brunch di Nasi Kandar Merlin (George Town)","alt":"","note":"Lokasi Nasi Kandar #1 (Union Street, George Town)"},{"t":"11:15","act":"Ronda santai & bergambar konvoi di Chew Jetty / Street Art George Town / Padang Kota Lama","alt":"","note":"Sesi bergambar kenangan & meronda kawasan warisan"},{"t":"12:30","act":"Makan tengah hari (lunch) di Deens Maju Nasi Kandar (Jalan Gurdwara)","alt":"","note":"Lokasi Nasi Kandar #2 (Jalan Gurdwara, George Town)"},{"t":"14:30","act":"Aktiviti bebas & beli buah tangan di sekitar pulau (atau opsyen naik ke The Top Penang / Komtar)","alt":"","note":"Masa santai & shopping buah tangan sebelum balik Seberang"},{"t":"16:30","act":"Ride pulang menyeberangi jambatan ke arah Seberang Perai","alt":"","note":"Bergerak balik ke tanah besar (Seberang Perai)"},{"t":"17:30","act":"Lepak santai petang di Setia Fontaines Heritage Park / Vision Park, Bertam","alt":"","note":"Rehat & lepak petang sekitar Kepala Batas"},{"t":"20:00","act":"Makan malam / supper di Nasi Kandar Bawah Pokok (Pokok Ketapang), Butterworth","alt":"","note":"Lokasi Nasi Kandar #3 (Kampung Benggali, Butterworth)"},{"t":"22:30","act":"Bertolak pulang ke Ini Homestay, Penaga & rehat untuk persiapan hari pulang","alt":"","note":"Balik homestay, kemas barang & cas tenaga untuk Day 3"}]},{"id":"d3","name":"Day3 Isnin","label":"Day 3","sub":"Isnin","date":"2026-12-28","title":"Day 28 December 2026","stay":"Ini Homestay, Penaga","gmap":"https://maps.app.goo.gl/1dqzxP5Dm6E27JpM8?g_st=aw","waze":"https://waze.com/ul/hw0zrkn6rg","rows":[{"t":"09:00","act":"Sarapan pagi & kemas beg di Ini Homestay, Penaga","alt":"","note":"Persiapan awal sebelum check-out"},{"t":"10:30","act":"Check Out dari Ini Homestay, Penaga & mula bergerak konvoi","alt":"","note":"Bertolak pulang"},{"t":"11:30","act":"Isi minyak penuh di stesen minyak berdekatan Penaga/Bertam","alt":"","note":"Wajib full tank (terutama Yamaha Y15 & ADV160)"},{"t":"13:00","act":"Makan tengah hari & solat Zohor (Kawasan sekitar Perak Utara / Taiping / Manjung)","alt":"","note":"Rehat konvoi"},{"t":"15:30","act":"Ride santai melalui jalan lama / pesisiran pantai / WCE","alt":"","note":"Menikmati pemanduan jalan belakang / kampung"},{"t":"17:30","act":"Singgah santai & minum petang di sekitar pesisir pantai / destinasi persinggahan","alt":"","note":"Rehat kaki & bergambar"},{"t":"19:30","act":"Dinner di Kerang Bakar Pantai Remis (Pantai Remis, Jeram)","alt":"","note":"Buka Isnin (3:30 ptg - 11:00 mlm). Link: https://www.google.com/maps/place//data=!4m2!3m1!19sChIJiYyJO8X3zDERAjPGqPw_Wcs"},{"t":"21:30","act":"Bergerak pulang dari Pantai Remis, Jeram ke destinasi masing-masing (Klang / Lembah Klang)","alt":"","note":"Laluan dekat (~25-40 minit ke Klang/Kapar)"},{"t":"22:30","act":"Tiba di destinasi akhir (Klang / Lembah Klang) & bersurai","alt":"","note":"Tamat konvoi 3 hari 2 malam"}]}],"members":[{"name":"Kamal","bike":"Wmoto R3TS V3","pillion":"Ngn Kamal","fuel":"380KM untuk full. 2 bar tinggal utk isi minyak setelah perjalanan mencapai 300KM","range":380},{"name":"Lan","bike":"QJPort 350","pillion":"Ngn Lan","fuel":"380KM Full. Total bar - Trip A","range":380},{"name":"Nuar","bike":"SR3 250","pillion":"ngn Nuar","fuel":"380KM   Full tank","range":380},{"name":"Irfan","bike":"Yamaha Y15","pillion":"","fuel":"150KM  Full tank","range":150},{"name":"Epul","bike":"Honda Adv160","pillion":"","fuel":"Tank 8.1 Liter..200Km tinggal 2 bar...Full tank 260km","range":260},{"name":"Azrul","bike":"","pillion":"Ya","fuel":"Helmet cari dalam saiz L kot","range":0},{"name":"Izwan","bike":"Benelli 250","pillion":"","fuel":"350KM   Full tank","range":350},{"name":"Erol","bike":"Zontes 350E","pillion":"","fuel":"380KM  Full tank","range":380}],"notes":["Pembayaran rm100 kepada Epul"],"pack":[{"item":"Berus Gigi","who":"","note":""},{"item":"Ubat Gigi","who":"","note":""},{"item":"Perfume","who":"","note":""},{"item":"Deodorant","who":"","note":""},{"item":"Ubat Cacing utk moto pancit","who":"Epul bawak","note":""},{"item":"Baju","who":"3 pasang","note":""},{"item":"Seluar","who":"3 pasang","note":""},{"item":"Plastik utk baju basah","who":"","note":""},{"item":"Lampu Led","who":"Semua","note":"Kalau bole bawak"},{"item":"Charger","who":"","note":""},{"item":"Lighter","who":"Irfan","note":""},{"item":"jaring motor","who":"","note":""},{"item":"Pam Motor","who":"Epul bawak","note":""},{"item":"Baju Hujan","who":"Kamal ada saiz XL","note":""},{"item":"Glove","who":"","note":""},{"item":"Panadol","who":"","note":""},{"item":"Tuala","who":"","note":""},{"item":"Kipas kecik","who":"Wajib bawa","note":""},{"item":"Tong Minyak","who":"Irfan","note":""},{"item":"Selipar Jepun","who":"","note":""},{"item":"Ubat GAOUT","who":"Lan @ Irfan","note":"wajib"},{"item":"Ubat Gastric","who":"All","note":""},{"item":"Touch light","who":"All if ada","note":""}],"packNotes":["22Hb Ogos","Jumaat Malam : Semua kumpul kat langat","Sabtu pagi terus gerak"],"warnings":[]};
+</script>
+<script>
+(function () {
+  'use strict';
+  var TABS = [['summary', 'Summary'], ['schedule', 'Schedule'], ['riders', 'Riders'], ['packing', 'Packing'], ['fuel', 'Fuel'], ['files', 'Files']];
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (x) { return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
 
-    function importJsonBackup(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        try {
-          const imported = JSON.parse(e.target.result);
-          if (imported && typeof imported === 'object') {
-            savedTrips = { ...savedTrips, ...imported };
-            activeTripId = Object.keys(imported)[0] || activeTripId;
-            saveState();
-            render();
-            showToast("Data JSON berjaya dipulihkan!");
-          }
-        } catch (err) {
-          showToast("Fail JSON tidak sah.", "error");
-        }
-      };
-      reader.readAsText(file);
-    }
+  var S = {
+    edit: false, edits: {}, tab: 'summary', tripId: 'dec2026', day: null, filter: 'all', confirmDel: null,
+    imported: [],           // [{id,name,data}]
+    state: {},              // shared checkmarks / pembawa
+    db: null, dbOn: false
+  };
+  try { S.imported = JSON.parse(store.get('konvoi.trips') || '[]'); } catch (e) { S.imported = []; }
+  try { S.state = JSON.parse(store.get('konvoi.state') || '{}'); } catch (e) { S.state = {}; }
+  try { S.edits = JSON.parse(store.get('konvoi.edits') || '{}'); } catch (e) { S.edits = {}; }
+  var savedTrip = store.get('konvoi.trip'); if (savedTrip) S.tripId = savedTrip;
+  var h = (location.hash || '').slice(1);
+  if (TABS.some(function (t) { return t[0] === h; })) S.tab = h; else { var st = store.get('konvoi.tab'); if (st && TABS.some(function (t) { return t[0] === st; })) S.tab = st; }
 
-    function confirmResetDefault() {
-      openModal(`
-        <h3 class="text-base font-extrabold text-white">Reset Data Asal?</h3>
-        <p class="text-xs text-slate-400 leading-relaxed">Semua tanda check-in, bayaran, dan edit pada konvoi Pulau Pinang Dis 2026 akan dikembalikan kepada keadaan asal.</p>
-        <div class="flex gap-2 pt-2">
-          <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">Batal</button>
-          <button onclick="executeResetDefault()" class="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-xs font-extrabold">Ya, Reset</button>
-        </div>
-      `);
-    }
+  function ensureIds(d) {
+    var fix = function (arr) {
+      var none = arr.every(function (x) { return x.uid == null; }), mx = -1;
+      arr.forEach(function (x) { if (x.uid != null && x.uid > mx) mx = x.uid; });
+      arr.forEach(function (x, i) { if (x.uid == null) x.uid = none ? i : ++mx; });
+    };
+    fix(d.pack); fix(d.members); d.days.forEach(function (y) { fix(y.rows); });
+    return d;
+  }
+  function nextUid(arr) { return arr.reduce(function (m, x) { return Math.max(m, +x.uid); }, -1) + 1; }
+  function byUid(arr, id) { return arr.filter(function (x) { return String(x.uid) === String(id); })[0]; }
+  function findDay(d, id) { return d.days.filter(function (x) { return x.id === id; })[0]; }
+  ensureIds(SAMPLE); S.imported.forEach(function (x) { ensureIds(x.data); });
+  for (var ek in S.edits) ensureIds(S.edits[ek]);
+  function trips() {
+    var base = S.edits.dec2026 || SAMPLE;
+    return [{ id: 'dec2026', name: base.name, data: base, builtin: true }].concat(S.imported);
+  }
+  function trip() {
+    var all = trips();
+    var f = all.filter(function (t) { return t.id === S.tripId; })[0] || all[0];
+    S.tripId = f.id; return f;
+  }
 
-    function executeResetDefault() {
-      savedTrips[DEFAULT_TRIP_DATA.id] = JSON.parse(JSON.stringify(DEFAULT_TRIP_DATA));
-      activeTripId = DEFAULT_TRIP_DATA.id;
-      selectedDayIndex = 0;
-      saveState();
-      closeModal();
-      render();
-      showToast("Data asal dikembalikan!");
-    }
-
-    // =========================================================================
-    // INITIALIZATION
-    // =========================================================================
-    window.addEventListener('DOMContentLoaded', () => {
-      loadState();
-      switchTab('ringkasan');
+  /* ---------- helpers ---------- */
+  function mins(rows) {          // monotonic minutes, so a 00:00 row after 23:30 sorts as next-day midnight
+    var out = [], prev = -1, add = 0;
+    rows.forEach(function (r) {
+      if (!r.t) { out.push(null); return; }
+      var m = +r.t.slice(0, 2) * 60 + +r.t.slice(3, 5) + add;
+      if (m < prev) { add += 1440; m += 1440; }
+      prev = m; out.push(m);
     });
-  </script>
-</body>
-</html>
+    return out;
+  }
+  function isoToday() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function dayDiff(iso) { var p = iso.split('-'); var a = new Date(+p[0], +p[1] - 1, +p[2]); var n = new Date(); n = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((a - n) / 864e5); }
+  function fmtDate(iso) { if (!iso) return ''; var p = iso.split('-'); var M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return +p[2] + ' ' + M[+p[1] - 1] + ' ' + p[0]; }
+  function linkify(t) { return esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">Open link ↗</a>'); }
+  function minRange(t) { var r = t.members.filter(function (m) { return m.range > 0; }); if (!r.length) return null; return r.reduce(function (a, b) { return b.range < a.range ? b : a; }); }
+  function isFuelStop(r) { return /isi minyak|top-?up minyak|minyak penuh/i.test(r.act); }
+  function isMust(txt) { return /wajib|must|mandatory/i.test(txt || ''); }
+  function key(kind, a, b) { return S.tripId + '_' + kind + '_' + a + (b == null ? '' : '_' + b); }
+
+  function analyze(day, limit) {
+    var cum = 0, out = [];
+    day.rows.forEach(function (r, i) {
+      var m = r.note.match(/(\d+(?:[.,]\d+)?)\s*km/i);
+      var km = m ? parseFloat(m[1].replace(',', '.')) : 0;
+      cum += km;
+      var fuel = isFuelStop(r);
+      if (km || fuel) out.push({ i: i, act: r.act, t: r.t, km: km, cum: cum, fuel: fuel, ratio: limit ? cum / limit : 0 });
+      if (fuel) cum = 0;
+    });
+    return out.filter(function (x) { return x.km > 0; });
+  }
+  function level(ratio) { return ratio >= 1 ? 'red' : ratio >= .75 ? 'amber' : ''; }
+  function shortAct(a) { return a.replace(/\s*\(.*?\)\s*/g, ' ').split(/\s+di\s+/i).slice(-1)[0].split(',')[0].trim(); }
+
+  /* ---------- persistence ---------- */
+  function setState(k, v) {
+    if (v === false || v === '' || v == null) delete S.state[k]; else S.state[k] = v;
+    store.set('konvoi.state', JSON.stringify(S.state));
+    if (S.dbOn) {
+      var ref = S.db.collection('state').doc(k);
+      var p = (v === false || v === '' || v == null) ? ref.delete() : ref.set({ v: v });
+      p.catch(function () { toast('Saved on this device only (no permission to write shared data).'); });
+    }
+  }
+  function fail() { toast('Saved on this device only (no permission to write shared data).'); }
+  function commit(rec, d) {
+    if (rec.builtin) {
+      S.edits[rec.id] = d; store.set('konvoi.edits', JSON.stringify(S.edits));
+      if (S.dbOn) S.db.collection('edits').doc(rec.id).set({ json: JSON.stringify(d) }).catch(fail);
+    } else {
+      var ref = S.imported.filter(function (x) { return x.id === rec.id; })[0];
+      if (ref) { ref.data = d; ref.name = d.name; }
+      saveTrips();
+      if (S.dbOn) S.db.collection('trips').doc(rec.id).set({ name: d.name, json: JSON.stringify(d) }).catch(fail);
+    }
+  }
+  function mutate(fn, redraw, undoMsg) {
+    var rec = trip(), prev = JSON.stringify(rec.data), d = JSON.parse(prev);
+    fn(d); commit(rec, d);
+    if (redraw) render(); else renderHeader();
+    if (undoMsg) toast(undoMsg, function () { commit(trip(), JSON.parse(prev)); render(); });
+  }
+  function saveTrips() { store.set('konvoi.trips', JSON.stringify(S.imported)); }
+
+  /* ---------- views ---------- */
+  function renderHeader() {
+    var t = trip();
+    $('subtitle').textContent = t.data.days.length ? t.data.days.length + ' days · ' + t.data.members.length + ' riders' + (t.data.days[0].date ? ' · ' + fmtDate(t.data.days[0].date) : '') : 'No schedule';
+    $('tripSel').innerHTML = trips().map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === S.tripId ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('');
+    var IC = {
+      summary: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+      schedule: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+      riders: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.500 2.700-6 6-6s6 2.500 6 6"/><circle cx="17" cy="9" r="2.500"/><path d="M17 14c2.500 0 4 2 4 5"/>',
+      packing: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+      fuel: '<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M4 20h11M14 9h2.500a1.500 1.500 0 0 1 1.500 1.500V16a1.500 1.500 0 0 0 3 0V9l-2.500-2.500"/><path d="M7.500 8h4"/>',
+      files: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/>'
+    };
+    $('bnav').innerHTML = TABS.map(function (x) { return '<button type="button" data-tab="' + x[0] + '"' + (x[0] === S.tab ? ' aria-current="page"' : '') + '><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC[x[0]] + '</svg></span>' + x[1] + '</button>'; }).join('');
+    $('tabs').innerHTML = TABS.map(function (x) { return '<button class="tab" role="tab" data-tab="' + x[0] + '" aria-selected="' + (x[0] === S.tab) + '">' + x[1] + '</button>'; }).join('');
+  }
+
+  function inp(ed, id, f, val, ph, extra) {
+    return '<input type="text" class="ed" data-ed="' + ed + '" data-id="' + esc(id) + '" data-f="' + f + '" value="' + esc(val) + '" placeholder="' + esc(ph) + '" aria-label="' + esc(ph) + '"' + (extra || '') + '>';
+  }
+  function locBtns(loc) {
+    loc = (loc || '').trim(); if (!loc) return '';
+    var url = /^https?:\/\//i.test(loc), q = encodeURIComponent(loc);
+    var map = url ? loc : 'https://www.google.com/maps/search/?api=1&query=' + q;
+    var waze = /waze\.com/i.test(loc) ? loc : (url ? '' : 'https://waze.com/ul?q=' + q + '&navigate=yes');
+    return '<div class="links" style="margin-top:6px"><a class="btn sm" href="' + esc(map) + '" target="_blank" rel="noopener">📍 ' + (url ? 'Location' : esc(loc)) + ' ↗</a>' + (waze ? '<a class="btn sm" href="' + esc(waze) + '" target="_blank" rel="noopener">Waze ↗</a>' : '') + '</div>';
+  }
+  function fld(label, html) { return '<label class="field"><span>' + label + '</span>' + html + '</label>'; }
+  function packStats(t) {
+    var done = 0; t.pack.forEach(function (p) { if (S.state[key('p', p.uid)]) done++; });
+    return { done: done, total: t.pack.length };
+  }
+
+  function viewRingkasan(t) {
+    var days = t.days, nowInfo = liveInfo(t), ps = packStats(t), lim = minRange(t);
+    var hero;
+    if (nowInfo.mode === 'before') {
+      var first = days[0].rows[0];
+      hero = '<div><div class="count">' + nowInfo.n + '</div><div class="count-label">days to go</div></div>' +
+        '<div class="next"><div class="k">Departs ' + fmtDate(days[0].date) + ' · ' + esc(days[0].label) + '</div><div class="t num">' + esc(first ? first.t : '') + '</div><div class="a">' + esc(first ? first.act : '') + '</div></div>';
+    } else if (nowInfo.mode === 'live') {
+      var cur = nowInfo.day.rows[nowInfo.cur], nxt = nowInfo.day.rows[nowInfo.cur + 1];
+      hero = '<div><div class="count">' + esc(nowInfo.day.label.replace('Day ', '')) + '</div><div class="count-label">today</div></div>' +
+        '<div class="next"><div class="k">Now</div><div class="t num">' + esc(cur.t) + '</div><div class="a">' + esc(cur.act) + '</div>' +
+        (nxt ? '<div class="k" style="margin-top:10px">Next · ' + esc(nxt.t) + '</div><div class="a">' + esc(nxt.act) + '</div>' : '') + '</div>';
+    } else if (nowInfo.mode === 'after') {
+      hero = '<div><div class="count">✓</div><div class="count-label">done</div></div><div class="next"><div class="t">Convoy finished</div><div class="a">' + esc(days[days.length - 1].title || '') + '</div></div>';
+    } else {
+      hero = '<div><div class="count">' + days.length + '</div><div class="count-label">days</div></div><div class="next"><div class="t">' + esc(t.name) + '</div><div class="a muted">No dates detected in the sheets.</div></div>';
+    }
+    var fuelStops = 0; days.forEach(function (d) { d.rows.forEach(function (r) { if (isFuelStop(r)) fuelStops++; }); });
+    var stats = '<div class="stats">' +
+      '<div class="stat"><b>' + days.length + '</b><span>Days</span></div>' +
+      '<div class="stat"><b>' + t.members.length + '</b><span>Riders</span></div>' +
+      '<div class="stat"><b>' + fuelStops + '</b><span>Fuel stops</span></div>' +
+      '<div class="stat"><b>' + ps.done + '/' + ps.total + '</b><span>Items packed</span></div></div>';
+
+    var att = [];
+    var pending = t.pack.map(function (p) { return { p: p, i: p.uid }; }).filter(function (x) { return !S.state[key('p', x.i)] && (isMust(x.p.note) || isMust(x.p.who)); });
+    pending.forEach(function (x) { att.push(['red', 'Must', x.p.item + (x.p.who ? ' · ' + x.p.who : '') + ' is not packed yet']); });
+    var noWho = t.pack.filter(function (p) { return !(S.state[key('w', p.uid)] != null ? S.state[key('w', p.uid)] : p.who) && !S.state[key('p', p.uid)]; }).length;
+    if (noWho) att.push(['amber', 'Carrier', noWho + ' items have no carrier yet']);
+    days.forEach(function (d) { analyze(d, lim && lim.range).forEach(function (a) { var lv = level(a.ratio); if (lv) att.push([lv, 'Fuel', d.label + ': ' + a.cum + ' km before refuelling at ' + shortAct(a.act) + ' (' + Math.round(a.ratio * 100) + '% of ' + lim.name + "'s range)"]); }); });
+    t.members.filter(function (m) { return !m.range; }).forEach(function (m) { att.push(['amber', 'Rider', m.name + ' has no tank range' + (m.bike ? '' : ' / no bike')]); });
+    var attHtml = att.length ? '<ul class="list">' + att.map(function (a) { return '<li><span class="pill ' + (a[0] === 'red' ? 'red' : 'amber') + '">' + a[1] + '</span><span class="grow">' + esc(a[2]) + '</span></li>'; }).join('') + '</ul>' : '<p class="empty">Nothing needs attention.</p>';
+
+    var notes = t.notes.concat(t.packNotes);
+    var notesHtml = '';
+    if (S.edit) {
+      notesHtml = '<section class="panel"><h2>Notes</h2><ul class="list">' + notes.map(function (n, i) { return '<li><span class="grow">' + inp('note', i, 'text', n, 'Note') + '</span><button class="btn sm danger" data-rm="note" data-id="' + i + '">Delete</button></li>'; }).join('') + '</ul><div class="addbar"><button class="btn sm" data-add="note">+ Add note</button></div></section>';
+    } else if (notes.length) {
+      notesHtml = '<section class="panel"><h2>Notes from file</h2><ul class="list">' + notes.map(function (n) { return '<li><span class="grow">' + esc(n) + '</span></li>'; }).join('') + '</ul></section>';
+    }
+    var stayHtml = days.map(function (d) { return d.stay ? '<li><span class="pill">' + esc(d.label) + '</span><span class="grow">' + esc(d.stay) + '</span></li>' : ''; }).join('');
+    return (S.edit ? '<section class="panel"><h2>File name</h2>' + inp('trip', 'x', 'name', t.name, 'File name') + '</section>' : '') + '<section class="hero">' + hero + '</section>' + stats +
+      '<div class="grid2"><section class="panel"><h2>Needs attention</h2>' + attHtml + '</section>' +
+      '<section class="panel"><h2>Stay</h2><ul class="list">' + (stayHtml || '<li class="muted">No details.</li>') + '</ul></section></div>' + notesHtml;
+  }
+
+  function liveInfo(t) {
+    var days = t.days.filter(function (d) { return d.date; });
+    if (!days.length) return { mode: 'none' };
+    var today = isoToday();
+    var d = days.filter(function (x) { return x.date === today; })[0];
+    if (d) {
+      var m = mins(d.rows), n = new Date(), nowM = n.getHours() * 60 + n.getMinutes(), cur = 0;
+      m.forEach(function (v, i) { if (v != null && v <= nowM) cur = i; });
+      return { mode: 'live', day: d, cur: cur };
+    }
+    var diff = dayDiff(days[0].date);
+    if (diff > 0) return { mode: 'before', n: diff };
+    if (dayDiff(days[days.length - 1].date) < 0) return { mode: 'after' };
+    return { mode: 'none' };
+  }
+
+  function viewJadual(t) {
+    if (!t.days.length) return '<section class="panel"><p class="empty">No schedule sheets in this file.</p>' + (S.edit ? '<button class="btn sm" data-add="day">+ Add day</button>' : '') + '</section>';
+    var live = liveInfo(t);
+    if (!S.day || !t.days.some(function (d) { return d.id === S.day; })) S.day = (live.mode === 'live' ? live.day.id : t.days[0].id);
+    var d = t.days.filter(function (x) { return x.id === S.day; })[0];
+    var chips = '<div class="daytabs">' + t.days.map(function (x) { return '<button class="chip" data-day="' + x.id + '" aria-pressed="' + (x.id === S.day) + '">' + esc(x.label) + (x.sub ? ' · ' + esc(x.sub) : '') + '</button>'; }).join('') + (S.edit ? '<button class="chip" data-add="day">+ Day</button>' : '') + '</div>';
+    if (S.edit) {
+      var did = ' data-did="' + d.id + '"';
+      var head = '<div class="fgrid">' + fld('Label', inp('day', d.id, 'label', d.label, 'Label')) + fld('Weekday', inp('day', d.id, 'sub', d.sub, 'Weekday')) +
+        fld('Date', '<input type="date" class="ed" data-ed="day" data-id="' + d.id + '" data-f="date" value="' + esc(d.date) + '">') + fld('Title', inp('day', d.id, 'title', d.title, 'Title')) +
+        fld('Stay', inp('day', d.id, 'stay', d.stay, 'Stay')) + fld('Google Maps link', inp('day', d.id, 'gmap', d.gmap, 'https://')) + fld('Waze link', inp('day', d.id, 'waze', d.waze, 'https://')) + '</div>';
+      var erows = d.rows.map(function (r) {
+        return '<li class="erow">' + fld('Time', '<input type="time" class="ed" data-ed="row" data-id="' + r.uid + '"' + did + ' data-f="t" value="' + esc(r.t) + '">') +
+          fld('Activity', inp('row', r.uid, 'act', r.act, 'Activity', did)) +
+          '<div class="full">' + fld('Location (place name or Maps/Waze link)', inp('row', r.uid, 'loc', r.loc || '', 'e.g. R&R Tapah or https://maps.app.goo.gl/...', did)) + '</div>' +
+          '<div class="full">' + fld('Backup activity', inp('row', r.uid, 'alt', r.alt, 'Backup', did)) + '</div>' +
+          '<div class="full">' + fld('Comment', '<textarea class="ed" data-ed="row" data-id="' + r.uid + '"' + did + ' data-f="note">' + esc(r.note) + '</textarea>') + '</div>' +
+          '<div class="rowact"><button class="btn sm danger" data-rm="row" data-id="' + r.uid + '"' + did + '>Delete activity</button></div></li>';
+      }).join('');
+      return '<section class="panel"><h2>Edit schedule</h2>' + chips + '<div style="height:14px"></div>' + head + '<ul class="elist">' + erows + '</ul>' +
+        '<div class="addbar" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-add="row"' + did + '>+ Add activity</button><button class="btn sm danger" data-rm="day" data-id="' + d.id + '">Delete this day</button></div></section>';
+    }
+    var done = 0; d.rows.forEach(function (r) { if (S.state[key('d', d.id, r.uid)]) done++; });
+    var links = (d.gmap ? '<a class="btn sm" href="' + esc(d.gmap) + '" target="_blank" rel="noopener">Google Maps ↗</a>' : '') + (d.waze ? '<a class="btn sm" href="' + esc(d.waze) + '" target="_blank" rel="noopener">Waze ↗</a>' : '');
+    var cur = (live.mode === 'live' && live.day.id === d.id) ? live.cur : -1;
+    var rows = d.rows.map(function (r, i) {
+      var ck = !!S.state[key('d', d.id, r.uid)];
+      return '<li class="' + (ck ? 'done ' : '') + (i === cur ? 'now ' : '') + (isFuelStop(r) ? 'fuel' : '') + '"><div class="time num">' + esc(r.t || '—') + '</div>' +
+        '<input class="tick" type="checkbox" data-done="' + d.id + '_' + r.uid + '" aria-label="Mark done" ' + (ck ? 'checked' : '') + '>' +
+        '<div><div class="act">' + (i === cur ? '<span class="pill sign">Now</span> ' : '') + esc(r.act) + '</div>' +
+        (r.alt ? '<div class="alt">Backup: ' + esc(r.alt) + '</div>' : '') + (r.note ? '<div class="note">' + linkify(r.note) + '</div>' : '') + locBtns(r.loc) + '</div></li>';
+    }).join('');
+    return '<section class="panel">' + '<div class="dayhead"><div><h2>' + esc(d.title || d.label) + '</h2><div class="muted small">' + esc(d.stay) + '</div></div><div class="links">' + links + '</div></div>' +
+      chips + '<div style="margin:14px 0 4px" class="small muted">' + done + ' / ' + d.rows.length + ' activities done</div><div class="meter"><i style="width:' + (d.rows.length ? done / d.rows.length * 100 : 0) + '%"></i></div>' +
+      '<ul class="tl">' + rows + '</ul></section>';
+  }
+
+  function viewAhli(t) {
+    if (S.edit) {
+      return '<section class="panel"><h2>Edit riders</h2><div class="members">' + t.members.map(function (m) {
+        return '<article class="member">' + fld('Name', inp('mem', m.uid, 'name', m.name, 'Name')) + fld('Bike', inp('mem', m.uid, 'bike', m.bike, 'Bike')) +
+          fld('Pillion', inp('mem', m.uid, 'pillion', m.pillion, 'Pillion')) +
+          fld('Full tank range (km)', '<input type="number" min="0" class="ed" data-ed="mem" data-id="' + m.uid + '" data-f="range" value="' + (m.range || '') + '" placeholder="e.g. 380">') +
+          fld('Fuel note', inp('mem', m.uid, 'fuel', m.fuel, 'Fuel note')) +
+          '<div class="rowact"><button class="btn sm danger" data-rm="mem" data-id="' + m.uid + '">Delete rider</button></div></article>';
+      }).join('') + '</div><div class="addbar"><button class="btn sm" data-add="mem">+ Add rider</button></div></section>';
+    }
+    if (!t.members.length) return '<section class="panel"><p class="empty">No riders yet. Tap Edit to add one, or import a file with "Nama" and "Jenis Motor" columns.</p></section>';
+    var lim = minRange(t), max = Math.max.apply(null, t.members.map(function (m) { return m.range; }).concat([1]));
+    return '<section class="panel"><h2>Convoy riders</h2><p class="muted small">Tank range is read from the "km" figure in the trip column. The rider with the shortest range sets the maximum distance between fuel stops.</p>' +
+      '<div class="members">' + t.members.map(function (m) {
+        var pill = lim && m.name === lim.name ? '<span class="pill amber">Limiter</span>' : (m.pillion ? '<span class="pill">' + esc(m.pillion) + '</span>' : '');
+        return '<article class="member"><h3><span>' + esc(m.name) + '</span>' + pill + '</h3><div>' + esc(m.bike || 'No bike') + '</div>' +
+          (m.range ? '<div class="meter ' + (lim && m.name === lim.name ? 'amber' : '') + '"><i style="width:' + m.range / max * 100 + '%"></i></div><div class="num"><b>' + m.range + ' km</b> <span class="muted small">full tank</span></div>' : '<div class="muted small">Tank range not set</div>') +
+          (m.fuel ? '<div class="fuelnote">' + esc(m.fuel) + '</div>' : '') + '</article>';
+      }).join('') + '</div></section>';
+  }
+
+  function viewBarangan(t) {
+    var ps = packStats(t);
+    var rows = t.pack.map(function (p) { return { p: p, i: p.uid, ck: !!S.state[key('p', p.uid)] }; }).filter(function (x) { return S.edit || S.filter === 'all' || (S.filter === 'todo' ? !x.ck : x.ck); });
+    var f = function (id, l) { return '<button class="chip" data-filter="' + id + '" aria-pressed="' + (S.filter === id) + '">' + l + '</button>'; };
+    var list = rows.map(function (x) {
+      var who = S.state[key('w', x.i)] != null ? S.state[key('w', x.i)] : x.p.who;
+      var whoIn = inp('pack', x.i, 'who', who, 'Carrier');
+      if (S.edit) {
+        return '<li class="' + (x.ck ? 'done' : '') + '"><input class="tick" type="checkbox" data-pack="' + x.i + '" aria-label="Mark done" ' + (x.ck ? 'checked' : '') + '>' +
+          '<div class="it">' + inp('pack', x.i, 'item', x.p.item, 'Item') + inp('pack', x.i, 'note', x.p.note, 'Comment (write "wajib" or "must" if important)') + '</div>' + whoIn +
+          '<button class="btn sm danger" data-rm="pack" data-id="' + x.i + '">Delete</button></li>';
+      }
+      return '<li class="' + (x.ck ? 'done' : '') + '"><input class="tick" type="checkbox" data-pack="' + x.i + '" aria-label="Mark packed: ' + esc(x.p.item) + '" ' + (x.ck ? 'checked' : '') + '>' +
+        '<div class="it">' + esc(x.p.item) + (isMust(x.p.note) || isMust(x.p.who) ? ' <span class="pill red">Must bring</span>' : '') + (x.p.note && !isMust(x.p.note) ? '<div class="muted small">' + esc(x.p.note) + '</div>' : '') + '</div>' + whoIn + '</li>';
+    }).join('');
+    return '<section class="panel"><h2>Packing list</h2><div class="small muted" style="margin-bottom:6px">' + ps.done + ' of ' + ps.total + ' packed</div><div class="meter" style="margin-bottom:14px"><i style="width:' + (ps.total ? ps.done / ps.total * 100 : 0) + '%"></i></div>' +
+      (S.edit ? '' : '<div class="filters">' + f('all', 'All') + f('todo', 'To pack') + f('done', 'Packed') + '</div>') +
+      (list ? '<ul class="pack' + (S.edit ? ' edit' : '') + '">' + list + '</ul>' : '<p class="empty">' + (t.pack.length ? 'No items in this view.' : 'No items yet.') + '</p>') +
+      (S.edit ? '<div class="addbar"><button class="btn sm" data-add="pack">+ Add item</button></div>' : '') + '</section>';
+  }
+
+  function viewMinyak(t) {
+    var lim = minRange(t);
+    if (!lim) return '<section class="panel"><h2>Fuel monitor</h2><p class="empty">Enter each rider\'s tank range (for example "380KM full tank") so distances between fuel stops can be checked.</p></section>';
+    var any = false;
+    var blocks = t.days.map(function (d) {
+      var a = analyze(d, lim.range); if (!a.length) return ''; any = true;
+      return '<section class="panel"><h2>' + esc(d.label) + (d.sub ? ' · ' + esc(d.sub) : '') + '</h2>' + a.map(function (x) {
+        var lv = level(x.ratio);
+        return '<div class="leg ' + (x.fuel ? 'reset' : '') + '"><div class="where">' + esc(shortAct(x.act)) + '<div class="muted small num">+' + x.km + ' km · ' + esc(x.t) + '</div></div>' +
+          '<div class="meter ' + lv + '"><i style="width:' + Math.min(100, x.ratio * 100) + '%"></i></div>' +
+          '<div class="val">' + Math.round(x.cum) + ' km' + (lv ? '<br><span class="pill ' + lv + '">' + (lv === 'red' ? 'Over' : 'Tight') + '</span>' : '') + '</div></div>';
+      }).join('') + '</section>';
+    }).join('');
+    return '<section class="panel"><h2>Fuel monitor</h2><p class="muted" style="margin:0">Convoy limiter: <b>' + esc(lim.name) + '</b> (' + esc(lim.bike) + ') with <b>' + lim.range + ' km</b> per tank. Each row shows the distance covered since the last fill-up; ⛽ means the tank is refilled there. Distances come from "~N km" in the Comment column, and the tank is assumed full at the start of each day.</p></section>' +
+      (any ? blocks : '<section class="panel"><p class="empty">No distance estimates ("~N km") in the Comment column.</p></section>');
+  }
+
+  function viewFail(t) {
+    var items = trips().map(function (x) {
+      var del = x.builtin ? '<span class="pill">Sample</span>' : (S.confirmDel === x.id ? '<button class="btn sm danger" data-delyes="' + x.id + '">Confirm delete</button><button class="btn sm" data-delno="1">Cancel</button>' : '<button class="btn sm danger" data-del="' + x.id + '">Delete</button>');
+      return '<div class="tripitem"><div class="grow"><b>' + esc(x.name) + '</b><div class="muted small">' + x.data.days.length + ' days · ' + x.data.members.length + ' riders · ' + x.data.pack.length + ' items</div></div>' +
+        (x.builtin && S.edits[x.id] ? '<button class="btn sm" data-resetedit="1">Reset to original</button>' : '') + (x.id === S.tripId ? '<span class="pill sign">Open</span>' : '<button class="btn sm" data-open="' + x.id + '">Open</button>') + del + '</div>';
+    }).join('');
+    return '<section class="panel"><h2>Add file</h2><div class="drop" id="drop"><div>Drag an .xlsx file here or</div><button class="btn sign" type="button" data-pick="1">Choose file</button><div class="muted small">Files are read in this browser. Ticks and carrier names are shared with anyone who opens this page.</div></div></section>' +
+      '<section class="panel"><h2>Your files</h2>' + items + '</section>' +
+      '<section class="panel"><h2>Recognised sheet formats</h2><div class="scroll"><table class="fmt"><thead><tr><th>Type</th><th>How it is detected</th><th>Columns</th></tr></thead><tbody>' +
+      '<tr><td>Daily schedule</td><td>A sheet with a <b>Masa</b> (Time) column header</td><td>Masa, Aktiviti, Aktiviti Backup, Komen. Rows above: "Aktiviti | Day 26 December 2026", Nama Homestay, Lokasi Gmap, Lokasi Waze</td></tr>' +
+      '<tr><td>Riders</td><td>Headers <b>Nama</b> and <b>Jenis Motor</b></td><td>Nama, Jenis Motor, Tumpang, one-tank range (for example "380KM full tank")</td></tr>' +
+      '<tr><td>Packing</td><td>A <b>Barangan</b> column header</td><td>Barangan, Pembawa, Komen. Write "wajib" for essential items</td></tr>' +
+      '</tbody></table></div><p class="muted small">Tip: write the distance between stops in Komen as "~27 km" and use the words "isi minyak" (fill up) in the activity so the Fuel tab can calculate.</p></section>';
+  }
+
+  var VIEWS = { summary: viewRingkasan, schedule: viewJadual, riders: viewAhli, packing: viewBarangan, fuel: viewMinyak, files: viewFail };
+  function render() {
+    renderHeader();
+    var t = trip().data;
+    $('btnEdit').setAttribute('aria-pressed', S.edit); $('btnEdit').textContent = S.edit ? 'Done' : 'Edit';
+    $('main').innerHTML = (S.edit && S.tab !== 'files' ? '<div class="banner">Edit mode. Change fields directly; changes save automatically.</div>' : '') + VIEWS[S.tab](t);
+    wireDrop();
+  }
+  function rerenderSoft() {
+    var a = document.activeElement;
+    if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && a.type !== 'checkbox'))) return;
+    render();
+  }
+
+  /* ---------- import ---------- */
+  var toastT;
+  function toast(msg, undo) {
+    var el = $('toast'); el.textContent = msg; el.hidden = false;
+    if (undo) { var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Undo'; b.onclick = function () { el.hidden = true; undo(); }; el.appendChild(b); }
+    clearTimeout(toastT); toastT = setTimeout(function () { el.hidden = true; }, undo ? 8000 : 5000);
+  }
+  function importFile(file) {
+    if (!file) return;
+    if (!/\.(xlsx|xlsm|xls)$/i.test(file.name)) { toast('The file must be .xlsx.'); return; }
+    if (!window.XLSX) { toast('The Excel reader failed to load. Check your connection and try again.'); return; }
+    var fr = new FileReader();
+    fr.onerror = function () { toast('The file could not be read.'); };
+    fr.onload = function () {
+      try {
+        var wb = XLSX.read(new Uint8Array(fr.result), { type: 'array' }), sheets = {};
+        wb.SheetNames.forEach(function (n) { sheets[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null, blankrows: true }); });
+        var data = ensureIds(parseTrip(sheets, file.name));
+        if (!data.days.length && !data.members.length && !data.pack.length) { toast('No recognised sheets. See the Files tab for the format.'); return; }
+        var id = 't' + Date.now().toString(36);
+        var rec = { id: id, name: data.name, data: data };
+        S.imported.push(rec); saveTrips();
+        if (S.dbOn) S.db.collection('trips').doc(id).set({ name: rec.name, json: JSON.stringify(data) }).catch(function () {});
+        S.tripId = id; S.day = null; store.set('konvoi.trip', id); S.tab = 'summary'; location.hash = 'summary';
+        render();
+        toast(data.name + ': ' + data.days.length + ' days, ' + data.members.length + ' riders, ' + data.pack.length + ' items.' + (data.warnings.length ? ' ' + data.warnings.join(' ') : ''));
+      } catch (e) { toast('The file could not be read as Excel.'); }
+    };
+    fr.readAsArrayBuffer(file);
+  }
+  function wireDrop() {
+    var d = $('drop'); if (!d) return;
+    d.ondragover = function (e) { e.preventDefault(); d.classList.add('over'); };
+    d.ondragleave = function () { d.classList.remove('over'); };
+    d.ondrop = function (e) { e.preventDefault(); d.classList.remove('over'); importFile(e.dataTransfer.files[0]); };
+  }
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files[0]) importFile(e.dataTransfer.files[0]); });
+
+  /* ---------- events ---------- */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-rm],[data-resetedit],#btnEdit,#btnImport');
+    if (!b) return;
+    var d = b.dataset;
+    if (b.id === 'btnEdit') { S.edit = !S.edit; render(); return; }
+    if (d.resetedit) { delete S.edits.dec2026; store.set('konvoi.edits', JSON.stringify(S.edits)); if (S.dbOn) S.db.collection('edits').doc('dec2026').delete().catch(fail); render(); toast('Restored to the original file.'); return; }
+    if (d.add) {
+      mutate(function (x) {
+        if (d.add === 'pack') x.pack.push({ uid: nextUid(x.pack), item: 'New item', who: '', note: '' });
+        else if (d.add === 'mem') x.members.push({ uid: nextUid(x.members), name: 'New rider', bike: '', pillion: '', fuel: '', range: 0 });
+        else if (d.add === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes.push('New note'); }
+        else if (d.add === 'row') { var dy = findDay(x, d.did); dy.rows.push({ uid: nextUid(dy.rows), t: '', act: 'New activity', alt: '', note: '', loc: '' }); }
+        else if (d.add === 'day') { var n = x.days.reduce(function (m, y) { return Math.max(m, +y.id.slice(1)); }, 0) + 1; x.days.push({ id: 'd' + n, name: '', label: 'Day ' + n, sub: '', date: '', title: '', stay: '', gmap: '', waze: '', rows: [] }); S.day = 'd' + n; }
+      }, true);
+      return;
+    }
+    if (d.rm) {
+      mutate(function (x) {
+        var keep = function (arr) { return arr.filter(function (y) { return String(y.uid) !== d.id; }); };
+        if (d.rm === 'pack') x.pack = keep(x.pack);
+        else if (d.rm === 'mem') x.members = keep(x.members);
+        else if (d.rm === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes.splice(+d.id, 1); }
+        else if (d.rm === 'row') { var dy = findDay(x, d.did); dy.rows = keep(dy.rows); }
+        else if (d.rm === 'day') { x.days = x.days.filter(function (y) { return y.id !== d.id; }); S.day = null; }
+      }, true, 'Deleted.');
+      return;
+    }
+    if (b.id === 'btnImport' || d.pick) { $('fileIn').click(); return; }
+    if (d.tab) { S.tab = d.tab; store.set('konvoi.tab', S.tab); location.hash = S.tab; window.scrollTo(0, 0); }
+    else if (d.day) S.day = d.day;
+    else if (d.filter) S.filter = d.filter;
+    else if (d.open) { S.tripId = d.open; S.day = null; store.set('konvoi.trip', S.tripId); }
+    else if (d.del) S.confirmDel = d.del;
+    else if (d.delno) S.confirmDel = null;
+    else if (d.delyes) {
+      S.imported = S.imported.filter(function (x) { return x.id !== d.delyes; }); saveTrips();
+      if (S.dbOn) S.db.collection('trips').doc(d.delyes).delete().catch(function () {});
+      if (S.tripId === d.delyes) S.tripId = 'dec2026'; S.confirmDel = null;
+    }
+    render();
+  });
+  document.addEventListener('change', function (e) {
+    var el = e.target;
+    if (el.id === 'fileIn') { importFile(el.files[0]); el.value = ''; return; }
+    if (el.id === 'tripSel') { S.tripId = el.value; S.day = null; store.set('konvoi.trip', S.tripId); render(); return; }
+    if (el.dataset.done) { var p = el.dataset.done.split('_'); setState(key('d', p[0], p[1]), el.checked); render(); }
+    else if (el.dataset.pack != null && el.dataset.pack !== '') { setState(key('p', el.dataset.pack), el.checked); render(); }
+    else if (el.dataset.ed) {
+      var k = el.dataset.ed, id = el.dataset.id, f = el.dataset.f, v = el.value;
+      mutate(function (x) {
+        if (k === 'trip') x.name = v.trim() || x.name;
+        else if (k === 'pack') { var p = byUid(x.pack, id); if (p) p[f] = v.trim(); if (f === 'who') setState(key('w', id), ''); }
+        else if (k === 'row') { var r = byUid(findDay(x, el.dataset.did).rows, id); if (r) r[f] = f === 'note' ? v : v.trim(); }
+        else if (k === 'mem') { var m = byUid(x.members, id); if (m) { if (f === 'range') m.range = Math.max(0, parseInt(v, 10) || 0); else m[f] = v.trim(); } }
+        else if (k === 'day') { var dd = findDay(x, id); if (dd) dd[f] = v.trim(); }
+        else if (k === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes[+id] = v.trim(); }
+      }, false);
+    }
+  });
+  window.addEventListener('hashchange', function () { var x = location.hash.slice(1); if (VIEWS[x] && x !== S.tab) { S.tab = x; render(); } });
+
+  /* ---------- shared store (optional) ---------- */
+  render();
+  setInterval(function () { if (S.tab === 'summary' || S.tab === 'schedule') rerenderSoft(); }, 60000);
+
+  (function connect() {
+    if (!window.claude || !claude.use) return;
+    var timer = setTimeout(function () {}, 10000);
+    claude.use('db').then(function (db) {
+      clearTimeout(timer);
+      if (!db) return;
+      S.db = db; S.dbOn = true;
+      db.collection('state').onSnapshot(function (snap) {
+        var remote = {};
+        snap.docs.forEach(function (d) { var x = d.data(); if (x && x.v != null) remote[d.id] = x.v; });
+        var merged = Object.assign({}, S.state);
+        Object.keys(remote).forEach(function (k) { merged[k] = remote[k]; });
+        snap.docChanges().forEach(function (c) { if (c.type === 'removed') delete merged[c.doc.id]; });
+        S.state = merged; store.set('konvoi.state', JSON.stringify(S.state)); rerenderSoft();
+      }, function () {});
+      db.collection('trips').onSnapshot(function (snap) {
+        var changed = false;
+        snap.docs.forEach(function (d) {
+          var x = d.data(); if (!x || !x.json) return;
+          var cur = S.imported.filter(function (y) { return y.id === d.id; })[0];
+          if (cur && JSON.stringify(cur.data) === x.json) return;
+          try {
+            var data = ensureIds(JSON.parse(x.json));
+            if (cur) { cur.data = data; cur.name = data.name; } else S.imported.push({ id: d.id, name: x.name, data: data });
+            changed = true;
+          } catch (e) {}
+        });
+        if (changed) { saveTrips(); rerenderSoft(); }
+      }, function () {});
+      db.collection('edits').onSnapshot(function (snap) {
+        var changed = false;
+        snap.docs.forEach(function (d) {
+          var x = d.data(); if (!x || !x.json) return;
+          if (S.edits[d.id] && JSON.stringify(S.edits[d.id]) === x.json) return;
+          try { S.edits[d.id] = ensureIds(JSON.parse(x.json)); changed = true; } catch (e) {}
+        });
+        snap.docChanges().forEach(function (c) { if (c.type === 'removed' && S.edits[c.doc.id]) { delete S.edits[c.doc.id]; changed = true; } });
+        if (changed) { store.set('konvoi.edits', JSON.stringify(S.edits)); rerenderSoft(); }
+      }, function () {});
+    }).catch(function () {});
+  })();
+})();
+</script>
+
+</body></html>
