@@ -288,7 +288,6 @@
   <div class="toast" id="toast" hidden role="status"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script>
     /* Pure parser: sheets = { sheetName: rows[][] } -> trip object */
     function parseTrip(sheets, fileName) {
@@ -450,8 +449,12 @@
         }
       }
 
+      var FIREBASE_URL = 'https://tripcrew-live-default-rtdb.asia-southeast1.firebasedatabase.app';
+      var DEFAULT_ROOM = 'dec2026-convoy-x7k2p9qa4m';
       var initHash = parseHash();
-      var roomId = initHash.room || store.get('konvoi.room') || 'dec2026-convoy';
+      var savedRoom = store.get('konvoi.room');
+      if (savedRoom === 'dec2026-convoy') savedRoom = '';
+      var roomId = initHash.room || savedRoom || DEFAULT_ROOM;
       store.set('konvoi.room', roomId);
 
       var S = {
@@ -459,9 +462,12 @@
         who: store.get('konvoi.who') || '',
         imported: [],
         state: {},
-        syncMode: 'Local',
-        syncTimer: null,
-        lastSyncTs: 0,
+        online: false,
+        outbox: {},
+        flushTimer: null,
+        flushing: null,
+        es: null,
+        pendingRender: false,
         lastSyncTimeStr: ''
       };
       try { S.imported = JSON.parse(store.get('konvoi.trips') || '[]'); } catch (e) { S.imported = []; }
@@ -594,193 +600,264 @@
       function level(ratio) { return ratio >= 1 ? 'red' : ratio >= .75 ? 'amber' : ''; }
       function shortAct(a) { return a.replace(/\s*\(.*?\)\s*/g, ' ').split(/\s+(?:di|at)\s+/i).slice(-1)[0].split(',')[0].trim(); }
 
-      /* ---------- Reliable Sync (BroadcastChannel + Gun.js) ---------- */
-      var gun = null, roomNode = null, bc = null, boundRoom = '';
-      var GUN_PEERS = [
-        'https://gun-manhattan.herokuapp.com/gun',
-        'https://peer.wallie.io/gun',
-        'https://gundb-relay-mlcl.onrender.com/gun'
-      ];
+      /* ---------- Firebase Realtime Database sync (REST + live stream) ----------
+         Struktur: rooms/<room>/state/<kunci>   -> setiap tick / carrier ada path sendiri
+                   rooms/<room>/trips/<id>/...  -> meta, members, pack, days/<dayId> (JSON string)
+                   rooms/<room>/meta/hideSample
+         Perubahan dihantar sebagai kemas kini path (PATCH), bukan timpa semua data. */
+      var R = {};                       // cermin data bilik dari server
+      var seededKey = function () { return 'konvoi.seeded.' + roomId; };
+      var outboxKey = function () { return 'konvoi.outbox.' + roomId; };
+      function roomUrl() { return FIREBASE_URL + '/rooms/' + encodeURIComponent(roomId) + '.json'; }
 
-      function buildSnapshot() {
-        return JSON.stringify({
-          tripId: S.tripId,
-          hideSample: !!S.hideSample,
-          state: S.state,
-          edits: S.edits,
-          imported: S.imported
+      function fbKey(k) { return String(k).replace(/[%.$#\[\]\/\u0000-\u001f]/g, function (c) { return '%' + ('0' + c.charCodeAt(0).toString(16).toUpperCase()).slice(-2); }); }
+      function unFbKey(k) { return String(k).replace(/%([0-9A-F]{2})/g, function (_m, h) { return String.fromCharCode(parseInt(h, 16)); }); }
+
+      function setAt(root, path, val) {
+        var parts = String(path).split('/').filter(Boolean);
+        if (!parts.length) return;
+        var o = root;
+        for (var i = 0; i < parts.length - 1; i++) {
+          if (o[parts[i]] == null || typeof o[parts[i]] !== 'object') o[parts[i]] = {};
+          o = o[parts[i]];
+        }
+        var last = parts[parts.length - 1];
+        if (val === null || val === undefined) delete o[last]; else o[last] = val;
+      }
+      function joinPath(a, b) { return String(a).replace(/\/+$/, '') + '/' + String(b).replace(/^\/+/, ''); }
+      function isEmptyObj(o) { return !o || typeof o !== 'object' || !Object.keys(o).length; }
+
+      function loadOutbox() {
+        try { S.outbox = JSON.parse(store.get(outboxKey()) || '{}') || {}; } catch (e) { S.outbox = {}; }
+      }
+      function saveOutbox() { store.set(outboxKey(), JSON.stringify(S.outbox)); }
+      function pendingCount() { return Object.keys(S.outbox).length; }
+
+      function addOp(map, p, v) {
+        Object.keys(map).forEach(function (k) { if (k.indexOf(p + '/') === 0) delete map[k]; });
+        var parts = p.split('/');
+        for (var i = 1; i < parts.length; i++) {
+          var anc = parts.slice(0, i).join('/');
+          if (Object.prototype.hasOwnProperty.call(map, anc)) {
+            var av = map[anc];
+            if (av === null || typeof av !== 'object') av = {};
+            setAt(av, '/' + parts.slice(i).join('/'), v);
+            map[anc] = av;
+            return;
+          }
+        }
+        map[p] = v;
+      }
+      function reapplyOutbox() {
+        Object.keys(S.outbox).forEach(function (p) { setAt(R, '/' + p, S.outbox[p]); });
+      }
+      function queueWrite(path, value) {
+        if (value === undefined) value = null;
+        addOp(S.outbox, path, value);
+        setAt(R, '/' + path, value);
+        saveOutbox();
+        scheduleFlush(false);
+        renderHeader();
+      }
+      function scheduleFlush(now) {
+        clearTimeout(S.flushTimer);
+        S.flushTimer = setTimeout(function () { flush(); }, now ? 0 : 200);
+      }
+
+      function flush() {
+        if (S.flushing) return S.flushing;
+        var keys = Object.keys(S.outbox);
+        if (!keys.length) return Promise.resolve(true);
+        var sent = {};
+        keys.forEach(function (k) { sent[k] = S.outbox[k]; });
+        var rid = roomId;
+        S.flushing = fetch(roomUrl() + '?print=silent', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sent)
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (rid === roomId) {
+            keys.forEach(function (k) {
+              if (Object.prototype.hasOwnProperty.call(S.outbox, k) && JSON.stringify(S.outbox[k]) === JSON.stringify(sent[k])) delete S.outbox[k];
+            });
+            saveOutbox();
+          }
+          S.online = true;
+          S.lastSyncTimeStr = fmtClock();
+          S.flushing = null;
+          renderHeader();
+          if (pendingCount()) scheduleFlush(false);
+          return true;
+        }).catch(function () {
+          S.flushing = null;
+          S.online = false;
+          renderHeader();
+          clearTimeout(S.flushTimer);
+          S.flushTimer = setTimeout(function () { flush(); }, 8000);
+          return false;
+        });
+        return S.flushing;
+      }
+
+      /* trip <-> bahagian */
+      function sectionsOf(d) {
+        var o = {};
+        o['meta'] = JSON.stringify({
+          name: d.name, limiterUid: d.limiterUid == null ? null : d.limiterUid,
+          notes: d.notes || [], packNotes: d.packNotes || [],
+          dayIds: (d.days || []).map(function (x) { return x.id; })
+        });
+        o['members'] = JSON.stringify(d.members || []);
+        o['pack'] = JSON.stringify(d.pack || []);
+        (d.days || []).forEach(function (y) { o['days/' + y.id] = JSON.stringify(y); });
+        return o;
+      }
+      function tripFromNode(node) {
+        try {
+          if (!node || !node.meta) return null;
+          var meta = JSON.parse(node.meta);
+          var d = {
+            name: meta.name || 'Trip', limiterUid: meta.limiterUid == null ? null : meta.limiterUid,
+            notes: meta.notes || [], packNotes: meta.packNotes || [], warnings: [],
+            members: node.members ? JSON.parse(node.members) : [],
+            pack: node.pack ? JSON.parse(node.pack) : [],
+            days: []
+          };
+          var dn = node.days || {}, used = {};
+          (meta.dayIds || []).forEach(function (id) {
+            if (dn[id]) { try { d.days.push(JSON.parse(dn[id])); used[id] = 1; } catch (e) {} }
+          });
+          Object.keys(dn).forEach(function (id) {
+            if (!used[id]) { try { d.days.push(JSON.parse(dn[id])); } catch (e) {} }
+          });
+          return ensureIds(d);
+        } catch (e) { return null; }
+      }
+      function tripInRoom(id) { return !!(R.trips && R.trips[id] && R.trips[id].meta); }
+      function writeTripSections(id, prev, next) {
+        var a = tripInRoom(id) && prev ? sectionsOf(prev) : {};
+        var b = sectionsOf(next);
+        Object.keys(b).forEach(function (k) { if (a[k] !== b[k]) queueWrite('trips/' + id + '/' + k, b[k]); });
+        Object.keys(a).forEach(function (k) { if (!Object.prototype.hasOwnProperty.call(b, k)) queueWrite('trips/' + id + '/' + k, null); });
+      }
+
+      /* server -> app */
+      function rebuildFromR() {
+        var st = {};
+        Object.keys(R.state || {}).forEach(function (k) { st[unFbKey(k)] = R.state[k]; });
+        S.state = st;
+        S.edits = {};
+        var imp = [];
+        Object.keys(R.trips || {}).sort().forEach(function (id) {
+          var d = tripFromNode(R.trips[id]);
+          if (!d) return;
+          if (id === 'dec2026') S.edits.dec2026 = d;
+          else imp.push({ id: id, name: d.name, data: d });
+        });
+        S.imported = imp;
+        S.hideSample = !!(R.meta && R.meta.hideSample);
+        store.set('konvoi.state', JSON.stringify(S.state));
+        store.set('konvoi.edits', JSON.stringify(S.edits));
+        store.set('konvoi.hideSample', S.hideSample ? '1' : '0');
+        saveTrips();
+      }
+      function seedFromLocal() {
+        Object.keys(S.state).forEach(function (k) { queueWrite('state/' + fbKey(k), S.state[k]); });
+        Object.keys(S.edits).forEach(function (id) { writeTripSections(id, null, S.edits[id]); });
+        S.imported.forEach(function (x) { writeTripSections(x.id, null, x.data); });
+        if (S.hideSample) queueWrite('meta/hideSample', true);
+      }
+      function onRemote() {
+        S.online = true;
+        S.lastSyncTimeStr = fmtClock();
+        reapplyOutbox();
+        var sk = seededKey();
+        if (!store.get(sk)) {
+          store.set(sk, '1');
+          if (isEmptyObj(R)) { seedFromLocal(); renderHeader(); return; }
+        }
+        rebuildFromR();
+        rerenderSoft();
+      }
+
+      function onStream(rid, ev, isPatch) {
+        if (rid !== roomId) return;
+        var m;
+        try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (!m || typeof m.path !== 'string') return;
+        if (m.path === '/' && !isPatch) {
+          R = (m.data && typeof m.data === 'object') ? m.data : {};
+        } else if (isPatch) {
+          Object.keys(m.data || {}).forEach(function (k) { setAt(R, joinPath(m.path, k), m.data[k]); });
+        } else {
+          setAt(R, m.path, m.data);
+        }
+        onRemote();
+      }
+
+      function closeStream() {
+        if (S.es) { try { S.es.close(); } catch (e) {} S.es = null; }
+      }
+      function openStream() {
+        closeStream();
+        if (!('EventSource' in window)) { renderHeader(); return; }
+        var rid = roomId, es;
+        try { es = new EventSource(roomUrl()); } catch (e) { renderHeader(); return; }
+        S.es = es;
+        es.addEventListener('open', function () { if (rid !== roomId) return; S.online = true; renderHeader(); flush(); });
+        es.addEventListener('put', function (ev) { onStream(rid, ev, false); });
+        es.addEventListener('patch', function (ev) { onStream(rid, ev, true); });
+        es.addEventListener('cancel', function () { S.online = false; renderHeader(); });
+        es.addEventListener('auth_revoked', function () { S.online = false; renderHeader(); });
+        es.onerror = function () {
+          S.online = false; renderHeader();
+          if (es.readyState === 2) { setTimeout(function () { if (S.es === es) openStream(); }, 5000); }
+        };
+      }
+
+      function pullOnce() {
+        var rid = roomId;
+        return fetch(roomUrl(), { cache: 'no-store' }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        }).then(function (data) {
+          if (rid !== roomId) return false;
+          R = (data && typeof data === 'object') ? data : {};
+          onRemote();
+          return true;
         });
       }
 
-      function applyIncomingPayload(data, opts) {
-        opts = opts || {};
-        if (!data || !data.blob) return false;
-        var ts = Number(data.updatedAt) || 0;
-        if (!opts.force && ts > 0 && ts <= S.lastSyncTs) return false;
-        if (ts > 0) {
-          S.lastSyncTs = ts;
-          S.lastSyncTimeStr = fmtClock(ts);
-        } else {
-          S.lastSyncTs = Date.now();
-          S.lastSyncTimeStr = fmtClock(S.lastSyncTs);
-        }
-        try {
-          var parsed = JSON.parse(data.blob);
-          if (parsed.state && typeof parsed.state === 'object') {
-            S.state = parsed.state;
-            store.set('konvoi.state', JSON.stringify(S.state));
-          }
-          if (parsed.edits && typeof parsed.edits === 'object') {
-            S.edits = parsed.edits;
-            for (var ek in S.edits) ensureIds(S.edits[ek]);
-            store.set('konvoi.edits', JSON.stringify(S.edits));
-          }
-          if (Array.isArray(parsed.imported)) {
-            S.imported = parsed.imported;
-            S.imported.forEach(function (x) { ensureIds(x.data); });
-            saveTrips();
-          }
-          if (typeof parsed.hideSample === 'boolean') {
-            S.hideSample = parsed.hideSample;
-            store.set('konvoi.hideSample', S.hideSample ? '1' : '0');
-          }
-          if (parsed.tripId) {
-            S.tripId = parsed.tripId;
-            store.set('konvoi.trip', S.tripId);
-          }
-          rerenderSoft();
-          if (!opts.silent) toast('Data dikemas kini (' + S.lastSyncTimeStr + ').');
-          return true;
-        } catch (e) {
-          return false;
-        }
-      }
-
-      function setupBroadcastChannel() {
-        try {
-          if (bc) { bc.close(); bc = null; }
-          if ('BroadcastChannel' in window) {
-            bc = new BroadcastChannel('tripcrew-room-' + roomId);
-            bc.onmessage = function (ev) {
-              if (ev && ev.data) applyIncomingPayload(ev.data, { silent: false });
-            };
-          }
-        } catch (e) {
-          bc = null;
-        }
-      }
-
       function connectLiveSync() {
-        setupBroadcastChannel();
-        if (!window.Gun) {
-          S.syncMode = bc ? 'TabSync' : 'Local';
-          renderHeader();
-          return;
-        }
-        try {
-          if (!gun) {
-            gun = Gun({ peers: GUN_PEERS, localStorage: true });
-          }
-          if (!roomNode || boundRoom !== roomId) {
-            if (roomNode && typeof roomNode.off === 'function') roomNode.off();
-            boundRoom = roomId;
-            roomNode = gun.get('tripcrew-live-v1').get(roomId);
-            roomNode.on(function (data) {
-              applyIncomingPayload(data, { silent: false });
-            });
-          }
-          S.syncMode = 'Live';
-          renderHeader();
-        } catch (e) {
-          S.syncMode = bc ? 'TabSync' : 'Local';
-          renderHeader();
-        }
-      }
-
-      function pushRoomSync(immediate, cb) {
-        clearTimeout(S.syncTimer);
-        var run = function () {
-          var now = Date.now();
-          S.lastSyncTs = now;
-          S.lastSyncTimeStr = fmtClock(now);
-          var payload = { updatedAt: now, blob: buildSnapshot() };
-
-          try {
-            if (bc) bc.postMessage(payload);
-          } catch (e) {}
-
-          if (roomNode) {
-            try {
-              roomNode.put(payload, function (ack) {
-                if (typeof cb === 'function') cb(ack, now);
-              });
-            } catch (e) {
-              if (typeof cb === 'function') cb({ err: e }, now);
-            }
-          } else if (typeof cb === 'function') {
-            cb(null, now);
-          }
-          renderHeader();
-        };
-        if (immediate) run();
-        else S.syncTimer = setTimeout(run, 180);
+        loadOutbox();
+        R = {};
+        openStream();
+        pullOnce().then(function () { return flush(); }).catch(function () { S.online = false; renderHeader(); });
       }
 
       function forceSyncNow() {
-        connectLiveSync();
         var btn = $('btnSyncNow');
         if (btn) { btn.disabled = true; btn.textContent = '⏳ Sync...'; }
-        var doneUi = function () {
-          if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync'; }
-        };
-
-        var finished = false;
-        var finishOnce = function (msg) {
-          if (finished) return;
-          finished = true;
-          doneUi();
-          toast(msg);
-        };
-
-        if (roomNode && typeof roomNode.once === 'function') {
-          try {
-            roomNode.once(function (remoteData) {
-              if (finished) return;
-              var remoteTs = remoteData && Number(remoteData.updatedAt) ? Number(remoteData.updatedAt) : 0;
-              if (remoteData && remoteData.blob && remoteTs > S.lastSyncTs) {
-                applyIncomingPayload(remoteData, { silent: true, force: true });
-                finishOnce('Kemas kini ditarik (' + S.lastSyncTimeStr + ').');
-              } else {
-                pushRoomSync(true, function (_ack, ts) {
-                  finishOnce('Data diselaraskan (' + fmtClock(ts) + ').');
-                });
-              }
-            });
-          } catch (e) {
-            pushRoomSync(true, function (_ack, ts) {
-              finishOnce('Disimpan & diselaraskan (' + fmtClock(ts) + ').');
-            });
-          }
-          setTimeout(function () {
-            if (!finished) {
-              pushRoomSync(true, function (_ack, ts) {
-                finishOnce('Data lokal dikemas kini (' + fmtClock(ts) + ').');
-              });
-            }
-          }, 1200);
-        } else {
-          pushRoomSync(true, function (_ack, ts) {
-            finishOnce('Data lokal dikemas kini (' + fmtClock(ts) + ').');
-          });
-        }
+        var restore = function () { if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync'; } };
+        flush().then(function () { return pullOnce(); }).then(function () {
+          restore();
+          renderHeader();
+          toast('Disegerakkan (' + S.lastSyncTimeStr + ')' + (pendingCount() ? ' · ' + pendingCount() + ' perubahan belum dihantar.' : '.'));
+          if (!S.es || S.es.readyState === 2) openStream();
+        }).catch(function () {
+          restore();
+          S.online = false;
+          renderHeader();
+          toast('Tak dapat hubungi server. Perubahan disimpan dan akan dihantar bila ada line.');
+        });
       }
 
       function setState(k, v) {
         if (v === false || v === '' || v == null) delete S.state[k]; else S.state[k] = v;
         store.set('konvoi.state', JSON.stringify(S.state));
-        pushRoomSync();
+        queueWrite('state/' + fbKey(k), (v === false || v === '' || v == null) ? null : v);
       }
       function commit(rec, d) {
+        var prevData = rec.data;
         if (rec.builtin) {
           S.edits[rec.id] = d;
           store.set('konvoi.edits', JSON.stringify(S.edits));
@@ -789,7 +866,7 @@
           if (ref) { ref.data = d; ref.name = d.name; }
           saveTrips();
         }
-        pushRoomSync();
+        writeTripSections(rec.id, prevData, d);
       }
       function mutate(fn, redraw, undoMsg) {
         var rec = trip(), prev = JSON.stringify(rec.data), d = JSON.parse(prev);
@@ -869,12 +946,13 @@
         var t = trip() || { data: { days: [], members: [] } };
         var badge = $('syncBadge'), badgeTxt = $('syncBadgeTxt');
         if (badge && badgeTxt) {
-          if (S.syncMode === 'Live' || S.syncMode === 'TabSync') {
+          var pend = pendingCount();
+          if (S.online) {
             badge.classList.remove('local');
-            badgeTxt.textContent = (S.syncMode === 'TabSync' ? 'Sync' : 'Live') + (S.lastSyncTimeStr ? ' · ' + S.lastSyncTimeStr : '');
+            badgeTxt.textContent = 'Live' + (S.lastSyncTimeStr ? ' · ' + S.lastSyncTimeStr : '') + (pend ? ' · ' + pend + ' tertunda' : '');
           } else {
             badge.classList.add('local');
-            badgeTxt.textContent = 'Local';
+            badgeTxt.textContent = 'Offline' + (pend ? ' · ' + pend + ' tertunda' : '');
           }
         }
         $('subtitle').textContent = (t.data.days.length ? t.data.days.length + ' days · ' + t.data.members.length + ' members' + (t.data.days[0].date ? ' · ' + fmtDate(t.data.days[0].date) : '') : 'Group trip planner') + ' · Room: ' + roomId;
@@ -1182,7 +1260,8 @@
       }
       function rerenderSoft() {
         var a = document.activeElement;
-        if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && a.type !== 'checkbox'))) return;
+        if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && a.type !== 'checkbox'))) { S.pendingRender = true; return; }
+        S.pendingRender = false;
         render();
       }
 
@@ -1209,7 +1288,7 @@
             var rec = { id: id, name: data.name, data: data };
             S.imported.push(rec); saveTrips();
             S.tripId = id; S.day = null; store.set('konvoi.trip', id); S.tab = 'summary'; ensureRoomInUrl(roomId);
-            pushRoomSync(true);
+            writeTripSections(id, null, data);
             render();
             toast(data.name + ': ' + data.days.length + ' days, ' + data.members.length + ' members, ' + data.pack.length + ' items.');
           } catch (e) { toast('Could not parse the file as an Excel workbook.'); }
@@ -1244,13 +1323,13 @@
           var nb = blankTrip(), nid = 't' + Date.now().toString(36); ensureIds(nb);
           S.imported.push({ id: nid, name: nb.name, data: nb }); saveTrips();
           S.tripId = nid; S.day = null; store.set('konvoi.trip', nid); S.tab = 'summary'; ensureRoomInUrl(roomId); S.edit = true;
-          pushRoomSync(true);
+          writeTripSections(nid, null, nb);
           render();
           toast('Created a blank new trip.');
           return;
         }
-        if (d.loadsample) { S.hideSample = false; store.set('konvoi.hideSample', '0'); S.tripId = 'dec2026'; pushRoomSync(true); render(); return; }
-        if (d.resetedit) { delete S.edits.dec2026; store.set('konvoi.edits', JSON.stringify(S.edits)); pushRoomSync(true); render(); toast('Restored to the original trip.'); return; }
+        if (d.loadsample) { S.hideSample = false; store.set('konvoi.hideSample', '0'); S.tripId = 'dec2026'; queueWrite('meta/hideSample', null); render(); return; }
+        if (d.resetedit) { delete S.edits.dec2026; store.set('konvoi.edits', JSON.stringify(S.edits)); queueWrite('trips/dec2026', null); render(); toast('Restored to the original trip.'); return; }
         if (d.add) {
           mutate(function (x) {
             if (d.add === 'pack') x.pack.push({ uid: nextUid(x.pack), item: '', who: '', note: '' });
@@ -1280,14 +1359,13 @@
         if (d.tab) { S.tab = d.tab; store.set('konvoi.tab', S.tab); ensureRoomInUrl(roomId); window.scrollTo(0, 0); }
         else if (d.day) S.day = d.day;
         else if (d.filter) S.filter = d.filter;
-        else if (d.open) { S.tripId = d.open; S.day = null; store.set('konvoi.trip', S.tripId); pushRoomSync(true); }
+        else if (d.open) { S.tripId = d.open; S.day = null; store.set('konvoi.trip', S.tripId); }
         else if (d.del) S.confirmDel = d.del;
         else if (d.delno) S.confirmDel = null;
         else if (d.delyes) {
-          if (d.delyes === 'dec2026') { S.hideSample = true; store.set('konvoi.hideSample', '1'); }
-          else { S.imported = S.imported.filter(function (x) { return x.id !== d.delyes; }); saveTrips(); }
+          if (d.delyes === 'dec2026') { S.hideSample = true; store.set('konvoi.hideSample', '1'); queueWrite('meta/hideSample', true); }
+          else { S.imported = S.imported.filter(function (x) { return x.id !== d.delyes; }); saveTrips(); queueWrite('trips/' + d.delyes, null); }
           if (S.tripId === d.delyes) S.tripId = ''; S.confirmDel = null;
-          pushRoomSync(true);
         }
         render();
       });
@@ -1295,7 +1373,7 @@
       document.addEventListener('change', function (e) {
         var el = e.target;
         if (el.id === 'fileIn') { importFile(el.files[0]); el.value = ''; return; }
-        if (el.id === 'tripSel') { S.tripId = el.value; S.day = null; store.set('konvoi.trip', S.tripId); pushRoomSync(true); render(); return; }
+        if (el.id === 'tripSel') { S.tripId = el.value; S.day = null; store.set('konvoi.trip', S.tripId); render(); return; }
         if (el.dataset.pickwho) {
           S.who = el.value;
           store.set('konvoi.who', S.who);
@@ -1340,11 +1418,18 @@
       });
 
       document.addEventListener('visibilitychange', function () {
-        if (!document.hidden && roomNode && typeof roomNode.once === 'function') {
-          try {
-            roomNode.once(function (data) { applyIncomingPayload(data, { silent: true }); });
-          } catch (e) {}
-        }
+        if (document.hidden) return;
+        if (!S.es || S.es.readyState === 2) openStream();
+        flush().then(function () { return pullOnce(); }).catch(function () {});
+      });
+      window.addEventListener('online', function () {
+        openStream();
+        flush().then(function () { return pullOnce(); }).catch(function () {});
+      });
+      window.addEventListener('offline', function () { S.online = false; renderHeader(); });
+      document.addEventListener('focusout', function () {
+        if (!S.pendingRender) return;
+        setTimeout(function () { if (S.pendingRender) rerenderSoft(); }, 400);
       });
 
       window.addEventListener('hashchange', function () {
@@ -1358,6 +1443,7 @@
         if (parsed.room && parsed.room !== roomId) {
           roomId = parsed.room;
           store.set('konvoi.room', roomId);
+          closeStream();
           connectLiveSync();
           changed = true;
         }
