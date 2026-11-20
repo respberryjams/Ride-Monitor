@@ -1309,6 +1309,7 @@
             return '<article class="member">' + fld('Name', inp('mem', m.uid, 'name', m.name, 'Name')) + fld('Vehicle / Bike', inp('mem', m.uid, 'bike', m.bike, 'Vehicle / Bike')) +
               fld('Passenger / Pillion', inp('mem', m.uid, 'pillion', m.pillion, 'Passenger')) +
               fld('Full tank range (km)', '<input type="number" min="0" class="ed" data-ed="mem" data-id="' + m.uid + '" data-f="range" value="' + (m.range || '') + '" placeholder="e.g. 260">') +
+              fld('Tank size (litre)', '<input type="number" min="0" step="0.1" class="ed" data-ed="mem" data-id="' + m.uid + '" data-f="tank" value="' + (m.tank || '') + '" placeholder="e.g. 4.2">') +
               fld('Fuel note', inp('mem', m.uid, 'fuel', m.fuel, 'e.g. Full tank 260km')) +
               '<div class="rowact"><button class="btn sm danger" data-rm="mem" data-id="' + m.uid + '">Delete member</button></div></article>';
           }).join('') + '</div><div class="addbar"><button class="btn sm sign" data-add="mem">+ Add member</button></div></section>';
@@ -1323,7 +1324,7 @@
             var pill = isLim ? '<span class="pill amber">⛽ Fuel Reference</span>' : (m.pillion ? '<span class="pill">' + esc(m.pillion) + '</span>' : '');
             var setBtn = (!isLim && m.range > 0) ? '<button class="btn sm" type="button" data-picklim="' + esc(m.uid) + '" style="margin-top:4px">Set as Fuel Reference</button>' : '';
             return '<article class="member"><h3><span class="who"><i class="av" style="background:' + avColor(m.name) + '">' + esc(String(m.name || '?').trim().charAt(0).toUpperCase()) + '</i><span>' + esc(m.name) + '</span></span>' + pill + '</h3><div>' + esc(m.bike || 'No vehicle') + '</div>' +
-              (m.range ? '<div class="meter ' + (isLim ? 'amber' : '') + '"><i style="width:' + m.range / max * 100 + '%"></i></div><div class="num"><b>' + m.range + ' km</b> <span class="muted small">full tank</span></div>' : '<div class="muted small">Tank range not set</div>') +
+              (m.range ? '<div class="meter ' + (isLim ? 'amber' : '') + '"><i style="width:' + m.range / max * 100 + '%"></i></div><div class="num"><b>' + m.range + ' km</b> <span class="muted small">full tank' + (m.tank ? ' · ' + m.tank + ' L' : '') + '</span></div>' : (m.tank ? '<div class="num small"><b>' + m.tank + ' L</b> <span class="muted">tank size</span></div>' : '<div class="muted small">Tank range not set</div>')) +
               (m.fuel ? '<div class="fuelnote">' + esc(m.fuel) + '</div>' : '') +
               setBtn + '</article>';
           }).join('') + '</div></section>';
@@ -1651,7 +1652,7 @@
         if (d.add) {
           mutate(function (x) {
             if (d.add === 'pack') x.pack.push({ uid: nextUid(x.pack), item: '', who: '', note: '' });
-            else if (d.add === 'mem') x.members.push({ uid: nextUid(x.members), name: '', bike: '', pillion: '', fuel: '', range: 0 });
+            else if (d.add === 'mem') x.members.push({ uid: nextUid(x.members), name: '', bike: '', pillion: '', fuel: '', range: 0, tank: 0 });
             else if (d.add === 'exp') x.expenses.push({ uid: nextUid(x.expenses), item: '', amount: 0, who: '', note: '' });
             else if (d.add === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes.push(''); }
             else if (d.add === 'row') { var dy = findDay(x, d.did); if (dy) dy.rows.push({ uid: nextUid(dy.rows), t: '', act: '', alt: '', note: '', loc: '' }); }
@@ -1729,6 +1730,8 @@
                   m.range = Math.max(0, parseInt(v, 10) || 0);
                   if (!m.range && String(x.limiterUid) === String(id)) x.limiterUid = null;
                   if (!m.range && String(S.state[key('lim', 'uid')]) === String(id)) setState(key('lim', 'uid'), '');
+                } else if (f === 'tank') {
+                  m.tank = Math.max(0, parseFloat(v) || 0);
                 } else m[f] = v.trim();
               }
             }
