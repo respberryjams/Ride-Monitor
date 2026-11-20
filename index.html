@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#6b1e3a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tripcrew">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <title>Tripcrew</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,6 +40,8 @@
     }
 
     * { box-sizing: border-box; }
+    html, body { touch-action: pan-x pan-y; -ms-touch-action: pan-x pan-y; -webkit-touch-callout: none; }
+    @media all and (display-mode: standalone), all and (display-mode: minimal-ui) { #btnInstall { display: none !important; } }
     html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 64px); -webkit-text-size-adjust: 100%; }
     body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.45; overflow-x: clip; }
     body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bar); }
@@ -101,6 +110,11 @@
 
     .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
     .list li { display: flex; gap: 10px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--line); min-width: 0; flex-wrap: wrap; }
+    .list li.rowlink { cursor: pointer; border-radius: 10px; margin: 0 -8px; padding: 10px 8px; transition: background .15s; }
+    .list li.rowlink:hover, .list li.rowlink:focus-visible { background: var(--accent-soft); }
+    .list li.rowlink > .rowlink-a { display: flex; gap: 10px; align-items: baseline; flex: 1 1 auto; min-width: 0; flex-wrap: wrap; text-decoration: none; color: inherit; }
+    .btn.icon-only { padding: 6px 10px; font-size: 1.05rem; line-height: 1; }
+    .weather-list .links { margin-left: auto; }
     .list li:first-child { border-top: 0; }
     .list .grow { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
 
@@ -398,6 +412,7 @@
         <button class="btn" id="btnEdit" type="button" aria-pressed="false">Edit</button>
         <div class="top-actions">
           <button class="btn" id="btnNewTop" type="button" data-new="1">+ New Trip</button>
+          <button class="btn" id="btnInstall" type="button" hidden>📲 Install app</button>
           <button class="btn sign" id="btnImport" type="button">Import .xlsx</button>
         </div>
         <input id="fileIn" type="file" accept=".xlsx,.xlsm,.xls" hidden>
@@ -1131,8 +1146,8 @@
       function weatherLinks(place) {
         if (!place) return '';
         var q = encodeURIComponent(place);
-        return '<a class="btn sm" href="https://www.accuweather.com/en/search-locations?query=' + q + '" target="_blank" rel="noopener">⛅ AccuWeather</a>' +
-          '<a class="btn sm" href="https://www.google.com/search?q=rain+radar+' + q + '" target="_blank" rel="noopener">🌧 Rain radar</a>';
+        return '<a class="btn sm icon-only" title="AccuWeather" href="https://www.accuweather.com/en/search-locations?query=' + q + '" target="_blank" rel="noopener">⛅</a>' +
+          '<a class="btn sm icon-only" title="Rain radar" href="https://www.google.com/search?q=rain+radar+' + q + '" target="_blank" rel="noopener">🌧</a>';
       }
       function guessPlace(act) {
         var m = String(act || '').replace(/\s*\([^)]*\)/g, ' ').match(/\s(?:di|at)\s(.+)$/i);
@@ -1201,28 +1216,37 @@
           return !hasCarrier && !anyChecked;
         }).length;
         if (noWho) att.push(['amber', 'Carrier', noWho + ' items have no carrier yet']);
-        days.forEach(function (d) { analyze(d, lim && lim.range).forEach(function (a) { var lv = level(a.ratio); if (lv) att.push([lv, 'Fuel', d.label + ': ' + a.cum + ' km before refuelling at ' + shortAct(a.act) + ' (' + Math.round(a.ratio * 100) + '% of ' + lim.name + "'s range)"]); }); });
-        t.members.filter(function (m) { return !m.range; }).forEach(function (m) { att.push(['amber', 'Member', m.name + ' has no tank range' + (m.bike ? '' : ' / no vehicle')]); });
-        var attHtml = att.length ? '<ul class="list">' + att.map(function (a) { return '<li><span class="pill ' + (a[0] === 'red' ? 'red' : 'amber') + '">' + a[1] + '</span><span class="grow">' + esc(a[2]) + '</span></li>'; }).join('') + '</ul>' : '<p class="empty">Nothing needs attention.</p>';
+        days.forEach(function (d) { analyze(d, lim && lim.range).forEach(function (a) { var lv = level(a.ratio); if (lv) att.push([lv, 'Fuel', d.label + ': ' + a.cum + ' km before refuelling at ' + shortAct(a.act) + ' (' + Math.round(a.ratio * 100) + '% of ' + lim.name + "'s range)", 'fuel']); }); });
+        t.members.filter(function (m) { return !m.range; }).forEach(function (m) { att.push(['amber', 'Member', m.name + ' has no tank range' + (m.bike ? '' : ' / no vehicle'), 'members']); });
+        var attIcon = { Must: '⚠️', Carrier: '🏷️', Fuel: '⛽', Member: '👤' };
+        var attHtml = att.length ? '<ul class="list">' + att.map(function (a) {
+          var tab = a[3] || (a[1] === 'Must' || a[1] === 'Carrier' ? 'packing' : 'members');
+          return '<li class="rowlink" data-tab="' + tab + '"><span class="pill ' + (a[0] === 'red' ? 'red' : 'amber') + '">' + (attIcon[a[1]] || '') + ' ' + a[1] + '</span><span class="grow">' + esc(a[2]) + '</span></li>';
+        }).join('') + '</ul>' : '<p class="empty">Nothing needs attention. 🎉</p>';
 
         var notes = t.notes.concat(t.packNotes);
         var weatherHtml = '';
         var wrows = days.map(function (d) { var pl = dayPlace(t, d); return pl ? '<li><span class="pill">' + esc(d.label) + '</span><span class="grow">' + esc(pl) + (d.date ? ' · ' + fmtDate(d.date) : '') + '</span><span class="links">' + weatherLinks(pl) + '</span></li>' : ''; }).join('');
-        if (wrows) weatherHtml = '<section class="panel"><h2>Weather</h2><ul class="list">' + wrows + '</ul><p class="muted small" style="margin:8px 0 0">Opens in a new tab. Set each day\'s town under Edit, Schedule, Weather location.</p></section>';
+        if (wrows) weatherHtml = '<section class="panel"><h2>⛅ Weather</h2><ul class="list weather-list">' + wrows + '</ul><p class="muted small" style="margin:8px 0 0">Opens in a new tab. Set each day\'s town under Edit, Schedule, Weather location.</p></section>';
         var notesHtml = '';
         if (S.edit) {
           notesHtml = '<section class="panel"><h2>Notes</h2><ul class="list">' + notes.map(function (n, i) { return '<li><span class="grow">' + inp('note', i, 'text', n, 'Note') + '</span><button class="btn sm danger" data-rm="note" data-id="' + i + '">Delete</button></li>'; }).join('') + '</ul><div class="addbar"><button class="btn sm" data-add="note">+ Add note</button></div></section>';
         } else if (notes.length) {
           notesHtml = '<section class="panel"><h2>Trip notes</h2><ul class="list">' + notes.map(function (n) { return '<li><span class="grow">' + esc(n) + '</span></li>'; }).join('') + '</ul></section>';
         }
-        var stayHtml = days.map(function (d) { return d.stay ? '<li><span class="pill">' + esc(d.label) + '</span><span class="grow">' + esc(d.stay) + '</span></li>' : ''; }).join('');
+        var stayHtml = days.map(function (d) {
+          if (!d.stay) return '';
+          var link = d.gmap || d.waze || '';
+          var pill = '<span class="pill">📍 ' + esc(d.label) + '</span><span class="grow">' + esc(d.stay) + '</span>' + (link ? '<span class="muted small">Open ↗</span>' : '');
+          return link ? '<li class="rowlink"><a class="rowlink-a" href="' + esc(link) + '" target="_blank" rel="noopener">' + pill + '</a></li>' : '<li>' + pill + '</li>';
+        }).join('');
         var quickShare = '<div class="links quick-actions" style="justify-content:flex-end"><button class="btn sm" type="button" data-syncnow="1">🔄 Sync Now</button></div>';
         return (S.edit ? '<section class="panel"><h2>Trip name</h2>' + inp('trip', 'x', 'name', t.name, 'Trip name') + '</section>' : '') +
           '<section class="hero">' + hero + '</section>' +
           quickShare +
           stats +
-          '<div class="grid2"><section class="panel"><h2>Needs attention</h2>' + attHtml + '</section>' +
-          '<section class="panel"><h2>Stay</h2><ul class="list">' + (stayHtml || '<li class="muted">No stay details yet.</li>') + '</ul></section></div>' + weatherHtml + notesHtml;
+          '<div class="grid2"><section class="panel"><h2>⚠️ Needs attention' + (att.length ? ' <span class="pill' + (att.some(function (a) { return a[0] === 'red'; }) ? ' red' : ' amber') + '">' + att.length + '</span>' : '') + '</h2>' + attHtml + '</section>' +
+          '<section class="panel"><h2>🏨 Stay</h2><ul class="list">' + (stayHtml || '<li class="muted">No stay details yet.</li>') + '</ul></section></div>' + weatherHtml + notesHtml;
       }
 
       function nextPending(t) {
@@ -1779,6 +1803,49 @@
       render();
       connectLiveSync();
       setInterval(function () { if (S.tab === 'summary' || S.tab === 'schedule') rerenderSoft(); }, 60000);
+    })();
+  </script>
+  <script>
+    /* ---------- PWA: install shortcut, standalone (no URL bar), lock zoom ---------- */
+    (function () {
+      var btn = document.getElementById('btnInstall'), deferred = null;
+      var standalone = function () { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; };
+      var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      function say(m) { var el = document.getElementById('toast'); if (!el) return alert(m); el.textContent = m; el.hidden = false; clearTimeout(say.t); say.t = setTimeout(function () { el.hidden = true; }, 7000); }
+
+      if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+        window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+      }
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault(); deferred = e;
+        if (btn && !standalone()) btn.hidden = false;
+      });
+      window.addEventListener('appinstalled', function () { deferred = null; if (btn) btn.hidden = true; say('Tripcrew installed. Open it from your home screen / app list.'); });
+      if (btn && isIOS && !standalone()) btn.hidden = false;
+      if (btn) btn.addEventListener('click', function () {
+        if (deferred) {
+          deferred.prompt();
+          deferred.userChoice.then(function () { deferred = null; btn.hidden = true; });
+        } else if (isIOS) {
+          say('iPhone: tap Share, then "Add to Home Screen".');
+        } else {
+          say('Chrome menu (⋮), then "Install app" or "Add to Home screen".');
+        }
+      });
+
+      /* lock zoom: pinch, double-tap, ctrl+wheel, ctrl +/- */
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (n) {
+        document.addEventListener(n, function (e) { e.preventDefault(); }, { passive: false });
+      });
+      document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+      var lastTouch = 0;
+      document.addEventListener('touchend', function (e) {
+        var now = Date.now(); if (now - lastTouch < 300) e.preventDefault(); lastTouch = now;
+      }, { passive: false });
+      window.addEventListener('wheel', function (e) { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+      window.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) e.preventDefault();
+      });
     })();
   </script>
 </body>
