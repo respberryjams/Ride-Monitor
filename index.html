@@ -271,8 +271,8 @@
         </div>
         <label class="small" for="tripSel" style="position:absolute;left:-9999px">Choose trip</label>
         <select id="tripSel" class="trip-select"></select>
-        <button class="btn" id="btnSyncNow" type="button" title="Tarik & hantar kemas kini sekarang">🔄 Sync</button>
-        <button class="btn" id="btnShareLink" type="button" title="Salin link bilik">🔗</button>
+        <button class="btn" id="btnSyncNow" type="button" title="Push &amp; pull the latest updates now">🔄 Sync</button>
+        <button class="btn" id="btnShareLink" type="button" title="Copy room link">🔗</button>
         <button class="btn" id="btnEdit" type="button" aria-pressed="false">Edit</button>
         <div class="top-actions">
           <button class="btn" id="btnNewTop" type="button" data-new="1">+ New Trip</button>
@@ -604,8 +604,8 @@
          Struktur: rooms/<room>/state/<kunci>   -> setiap tick / carrier ada path sendiri
                    rooms/<room>/trips/<id>/...  -> meta, members, pack, days/<dayId> (JSON string)
                    rooms/<room>/meta/hideSample
-         Perubahan dihantar sebagai kemas kini path (PATCH), bukan timpa semua data. */
-      var R = {};                       // cermin data bilik dari server
+         Changes are sent as per-path updates (PATCH), not by overwriting all data. */
+      var R = {};                       // mirror of the room data from the server
       var seededKey = function () { return 'konvoi.seeded.' + roomId; };
       var outboxKey = function () { return 'konvoi.outbox.' + roomId; };
       function roomUrl() { return FIREBASE_URL + '/rooms/' + encodeURIComponent(roomId) + '.json'; }
@@ -841,13 +841,13 @@
         flush().then(function () { return pullOnce(); }).then(function () {
           restore();
           renderHeader();
-          toast('Disegerakkan (' + S.lastSyncTimeStr + ')' + (pendingCount() ? ' · ' + pendingCount() + ' perubahan belum dihantar.' : '.'));
+          toast('Synced (' + S.lastSyncTimeStr + ')' + (pendingCount() ? ' · ' + pendingCount() + ' changes not sent yet.' : '.'));
           if (!S.es || S.es.readyState === 2) openStream();
         }).catch(function () {
           restore();
           S.online = false;
           renderHeader();
-          toast('Tak dapat hubungi server. Perubahan disimpan dan akan dihantar bila ada line.');
+          toast('Cannot reach the server. Your changes are saved and will be sent when you are back online.');
         });
       }
 
@@ -887,12 +887,12 @@
         var url = shareUrl();
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(url).then(function () {
-            toast('Link bilik disalin: ' + url);
+            toast('Room link copied: ' + url);
           }).catch(function () {
-            prompt('Salin link bilik ini:', url);
+            prompt('Copy this room link:', url);
           });
         } else {
-          prompt('Salin link bilik ini:', url);
+          prompt('Copy this room link:', url);
         }
       }
 
@@ -949,10 +949,10 @@
           var pend = pendingCount();
           if (S.online) {
             badge.classList.remove('local');
-            badgeTxt.textContent = 'Live' + (S.lastSyncTimeStr ? ' · ' + S.lastSyncTimeStr : '') + (pend ? ' · ' + pend + ' tertunda' : '');
+            badgeTxt.textContent = 'Live' + (S.lastSyncTimeStr ? ' · ' + S.lastSyncTimeStr : '') + (pend ? ' · ' + pend + ' pending' : '');
           } else {
             badge.classList.add('local');
-            badgeTxt.textContent = 'Offline' + (pend ? ' · ' + pend + ' tertunda' : '');
+            badgeTxt.textContent = 'Offline' + (pend ? ' · ' + pend + ' pending' : '');
           }
         }
         $('subtitle').textContent = (t.data.days.length ? t.data.days.length + ' days · ' + t.data.members.length + ' members' + (t.data.days[0].date ? ' · ' + fmtDate(t.data.days[0].date) : '') : 'Group trip planner') + ' · Room: ' + roomId;
@@ -1166,7 +1166,7 @@
           whoBar = '<div class="who-bar">' +
             '<span class="small"><b>Ticking as:</b></span>' +
             '<select data-pickwho="1" aria-label="Select member ticking packing list">' + opts + '</select>' +
-            '<span class="muted small">Setiap ahli ada status tick masing-masing (cth: Kamal sudah tick, Irfan belum).</span>' +
+            '<span class="muted small">Each member has their own ticks (e.g. Kamal has ticked an item, Irfan has not).</span>' +
             '</div>';
         }
 
@@ -1238,7 +1238,7 @@
             (x.builtin && S.edits[x.id] ? '<button class="btn sm" data-resetedit="1">Reset to original</button>' : '') + (x.id === S.tripId ? '<span class="pill sign">Open</span>' : '<button class="btn sm" data-open="' + x.id + '">Open</button>') + del + '</div>';
         }).join('');
         return '<section class="panel"><h2>Sync Room (' + esc(roomId) + ')</h2>' +
-          '<p class="muted small" style="margin-top:0">Semua ahli yang membuka pautan bilik ini berkongsi perubahan jadual dan senarai barang. Tekan <b>🔄 Sync</b> bila-bila masa untuk menarik atau menolak kemas kini terkini.</p>' +
+          '<p class="muted small" style="margin-top:0">Everyone who opens this room link shares schedule and packing list changes. Press <b>🔄 Sync</b> at any time to push or pull the latest updates.</p>' +
           '<div class="links quick-actions"><button class="btn sign" type="button" data-syncnow="1">🔄 Sync Now</button><button class="btn" type="button" data-copylink="1">🔗 Copy Room Link</button><button class="btn" type="button" data-export="1">📥 Export Excel (.xlsx)</button></div></section>' +
           '<section class="panel"><h2>Add a trip</h2><div class="drop" id="drop"><div>Tap below to pick an .xlsx file or drag one here</div><div class="links" style="justify-content:center"><button class="btn sign" type="button" data-new="1">+ New Trip</button><button class="btn" type="button" data-pick="1">Choose file</button></div><div class="muted small">Files are processed locally in your browser.</div></div></section>' +
           '<section class="panel"><h2>Your trips</h2>' + items + (S.hideSample ? '<div class="addbar"><button class="btn sm" data-loadsample="1">Load sample trip</button></div>' : '') + '</section>' +
