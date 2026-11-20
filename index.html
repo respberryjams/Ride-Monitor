@@ -162,6 +162,29 @@
     .lim-bar select { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; font: inherit; font-weight: 600; max-width: 100%; }
 
     /* packing */
+
+    /* multi-select carrier dropdown */
+    .c-drop { position: relative; min-width: 0; }
+    .c-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--bg); color: var(--ink); font: inherit; font-weight: 600; text-align: left; min-height: 40px; }
+    .c-btn:hover { border-color: var(--sign); }
+    .c-btn span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .c-menu { display: none; position: absolute; right: 0; top: calc(100% + 4px); width: 210px; max-height: 230px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 4px; box-shadow: 0 10px 26px rgba(0,0,0,.28); z-index: 40; padding: 6px; }
+    .c-menu.open { display: block; }
+    .c-opt { display: flex; align-items: center; gap: 8px; padding: 8px 8px; border-radius: 3px; cursor: pointer; font-size: .9rem; user-select: none; }
+    .c-opt:hover { background: var(--accent-soft); }
+    .c-opt input { width: 17px; height: 17px; accent-color: var(--sign); margin: 0; cursor: pointer; flex: none; }
+    .c-opt.all-opt { font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--line); margin-bottom: 4px; padding-bottom: 9px; }
+    .c-custom { display: flex; gap: 4px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+    .c-custom input { flex: 1; min-width: 0; font: inherit; font-size: .85rem; padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--bg); color: var(--ink); min-height: 34px; }
+    .c-custom button { padding: 4px 8px; min-height: 34px; font-size: .8rem; }
+    @media (max-width: 560px) {
+      .pack li > .c-drop { grid-column: 2; }
+      .c-menu { left: 0; right: auto; width: 100%; max-width: 260px; }
+    }
+    @media (max-width: 620px) {
+      .pack.edit li > .c-drop { grid-column: 2; }
+    }
+
     .who-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--accent-soft); color: var(--ink); padding: 10px 14px; border-radius: 12px; margin-bottom: 12px; }
     .who-bar select { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; font: inherit; font-weight: 600; max-width: 100%; }
     .who-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
@@ -624,7 +647,7 @@
       store.set('konvoi.room', roomId);
 
       var S = {
-        edit: false, edits: {}, tab: 'summary', tripId: 'dec2026', day: null, filter: 'all', confirmDel: null,
+        edit: false, edits: {}, tab: 'summary', tripId: 'dec2026', day: null, filter: 'all', confirmDel: null, openCarrierMenu: null,
         who: store.get('konvoi.who') || '',
         imported: [],
         state: {},
@@ -1398,6 +1421,67 @@
           }).join('') + '</div></section>';
       }
 
+      function parseCarriers(raw, names) {
+        var str = String(raw || '').trim();
+        if (!str) return { all: false, picked: [], extra: '' };
+        if (/^(all|everyone|semua)$/i.test(str)) return { all: true, picked: [], extra: '' };
+        var parts = str.split(/\s*(?:,|&|@|\+|\/|\band\b|\bdan\b)\s*/i).map(function (s) { return s.trim(); }).filter(Boolean);
+        var picked = [], extras = [], isAll = false;
+        parts.forEach(function (part) {
+          if (/^(all|everyone|semua)$/i.test(part)) { isAll = true; return; }
+          var match = names.filter(function (nm) {
+            return part.toLowerCase() === nm.toLowerCase() || part.toLowerCase().indexOf(nm.toLowerCase() + ' ') === 0;
+          })[0];
+          if (match) {
+            if (picked.indexOf(match) === -1) picked.push(match);
+          } else {
+            extras.push(part);
+          }
+        });
+        if (isAll) return { all: true, picked: [], extra: '' };
+        return { all: false, picked: picked, extra: extras.join(', ') };
+      }
+
+      function formatCarriers(parsed) {
+        if (parsed.all) return 'All';
+        var arr = parsed.picked.slice();
+        if (parsed.extra) arr.push(parsed.extra);
+        return arr.join(' @ ');
+      }
+
+      function carrierDropdownHtml(uid, rawWho, names) {
+        var parsed = parseCarriers(rawWho, names);
+        var isOpen = String(S.openCarrierMenu) === String(uid);
+        var btnLabel = 'Select carrier';
+        if (parsed.all) btnLabel = 'ALL (Everyone)';
+        else if (parsed.picked.length === 1 && !parsed.extra) btnLabel = parsed.picked[0];
+        else if (parsed.picked.length > 1) btnLabel = parsed.picked[0] + ' +' + (parsed.picked.length - 1 + (parsed.extra ? 1 : 0));
+        else if (parsed.extra) btnLabel = parsed.extra;
+
+        var optsHtml = '<label class="c-opt all-opt">' +
+          '<input type="checkbox" data-ctoggle="' + uid + '" data-cval="ALL"' + (parsed.all ? ' checked' : '') + '>' +
+          '<span>ALL (Everyone)</span></label>';
+
+        names.forEach(function (nm) {
+          var ck = !parsed.all && parsed.picked.indexOf(nm) > -1;
+          optsHtml += '<label class="c-opt">' +
+            '<input type="checkbox" data-ctoggle="' + uid + '" data-cval="' + esc(nm) + '"' + (ck ? ' checked' : '') + '>' +
+            '<span>' + esc(nm) + '</span></label>';
+        });
+
+        optsHtml += '<div class="c-custom">' +
+          '<input type="text" placeholder="Custom / note..." value="' + esc(parsed.extra) + '" data-ccustom="' + uid + '" aria-label="Custom carrier note">' +
+          '<button type="button" class="btn sm" data-cclose="1">OK</button>' +
+          '</div>';
+
+        return '<div class="c-drop">' +
+          '<button type="button" class="c-btn" data-cmenu="' + uid + '" aria-expanded="' + isOpen + '">' +
+            '<span>' + esc(btnLabel) + '</span><span>▾</span>' +
+          '</button>' +
+          '<div class="c-menu' + (isOpen ? ' open' : '') + '" data-cmenubox="' + uid + '">' + optsHtml + '</div>' +
+        '</div>';
+      }
+
       function viewBarangan(t) {
         var names = memberNames(t);
         var activeWho = getActiveMember(t);
@@ -1420,23 +1504,50 @@
         var rows = t.pack.map(function (p) {
           var ck = names.length ? isPackChecked(p.uid, activeWho) : (!!S.state[key('p', p.uid)] || isPackChecked(p.uid, 'Shared'));
           var whoList = checkedByMembers(t, p.uid);
-          return { p: p, i: p.uid, ck: ck, whoList: whoList };
+          var rawWho = S.state[key('w', p.uid)] != null ? S.state[key('w', p.uid)] : p.who;
+          var parsedWho = parseCarriers(rawWho, names);
+          return { p: p, i: p.uid, ck: ck, whoList: whoList, rawWho: rawWho, parsedWho: parsedWho };
         }).filter(function (x) {
           if (S.edit || S.filter === 'all') return true;
           if (S.filter === 'must') return isMust(x.p.note) || isMust(x.p.who);
           if (S.filter === 'nocarrier') {
-            var hc = !!(S.state[key('w', x.i)] != null ? S.state[key('w', x.i)] : x.p.who);
+            var hc = !!(x.rawWho && String(x.rawWho).trim());
             return !hc && !x.whoList.length && !S.state[key('p', x.i)];
+          }
+          if (S.filter.indexOf('member:') === 0) {
+            var targetNm = S.filter.slice(7);
+            return x.parsedWho.all || x.parsedWho.picked.some(function (n) { return n.toLowerCase() === targetNm.toLowerCase(); });
           }
           return S.filter === 'todo' ? !x.ck : x.ck;
         });
 
-        var f = function (id, l) { return '<button class="chip" data-filter="' + id + '" aria-pressed="' + (S.filter === id) + '">' + l + '</button>'; };
+        var f = function (id, l) { return '<button class="chip" data-filter="' + esc(id) + '" aria-pressed="' + (S.filter === id) + '">' + esc(l) + '</button>'; };
+        var memberFilterHtml = names.length
+          ? '<select class="ed" style="width:auto;min-height:36px;padding:4px 10px;font-size:.85rem" data-filtermember="1" aria-label="Filter by carrier">' +
+              '<option value="">Carrier: Any</option>' +
+              names.map(function (nm) {
+                var val = 'member:' + nm;
+                return '<option value="' + esc(val) + '"' + (S.filter === val ? ' selected' : '') + '>' + esc(nm) + ' + All</option>';
+              }).join('') +
+            '</select>'
+          : '';
+
         var list = rows.map(function (x) {
-          var who = S.state[key('w', x.i)] != null ? S.state[key('w', x.i)] : x.p.who;
-          var whoIn = inp('pack', x.i, 'who', who, 'Carrier');
-          var tagsHtml = x.whoList.length
-            ? '<div class="who-tags">' + x.whoList.map(function (nm) { return '<span class="pill ok">✓ ' + esc(nm) + '</span>'; }).join('') + '</div>'
+          var whoIn = carrierDropdownHtml(x.i, x.rawWho, names);
+          var carrierBadges = '';
+          if (x.parsedWho.all) {
+            carrierBadges += '<span class="pill sign">ALL</span>';
+          } else {
+            x.parsedWho.picked.forEach(function (nm) {
+              carrierBadges += '<span class="pill">' + esc(nm) + '</span>';
+            });
+            if (x.parsedWho.extra) {
+              carrierBadges += '<span class="pill amber">' + esc(x.parsedWho.extra) + '</span>';
+            }
+          }
+          var checkedBadges = x.whoList.map(function (nm) { return '<span class="pill ok">✓ ' + esc(nm) + '</span>'; }).join('');
+          var tagsHtml = (carrierBadges || checkedBadges)
+            ? '<div class="who-tags">' + carrierBadges + checkedBadges + '</div>'
             : '';
 
           if (S.edit) {
@@ -1453,7 +1564,7 @@
         return '<section class="panel"><h2>Packing list</h2>' +
           whoBar +
           '<div class="small muted" style="margin-bottom:6px">' + esc(ps.label) + '</div><div class="meter" style="margin-bottom:14px"><i style="width:' + (ps.total ? ps.done / ps.total * 100 : 0) + '%"></i></div>' +
-          (S.edit ? '' : '<div class="filters">' + f('all', 'All') + f('todo', 'To pack') + f('done', 'Packed') + f('must', 'Must bring') + f('nocarrier', 'No carrier') + '</div>') +
+          (S.edit ? '' : '<div class="filters">' + f('all', 'All') + f('todo', 'To pack') + f('done', 'Packed') + f('must', 'Must bring') + f('nocarrier', 'No carrier') + memberFilterHtml + '</div>') +
           (list ? '<ul class="pack' + (S.edit ? ' edit' : '') + '">' + list + '</ul>' : '<p class="empty">' + (t.pack.length ? 'No items match this filter.' : 'No packing items yet. Tap Edit above to add items.') + '</p>') +
           (S.edit ? '<div class="addbar"><button class="btn sm sign" data-add="pack">+ Add item</button></div>' : '') + '</section>';
       }
@@ -1684,9 +1795,23 @@
 
       /* ---------- events ---------- */
       document.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-pay],[data-paycustom],[data-addpay],[data-preset],[data-addexp],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-iam],[data-switchme],[data-setfilter],[data-export],[data-copylink],[data-syncnow],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
+        if (!e.target.closest('.c-drop') && S.openCarrierMenu != null) {
+          S.openCarrierMenu = null;
+          document.querySelectorAll('.c-menu.open').forEach(function (m) { m.classList.remove('open'); });
+        }
+        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-pay],[data-paycustom],[data-addpay],[data-preset],[data-addexp],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-iam],[data-switchme],[data-setfilter],[data-export],[data-copylink],[data-syncnow],[data-cmenu],[data-cclose],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
         if (!b) return;
         var d = b.dataset;
+        if (d.cmenu != null) {
+          S.openCarrierMenu = (String(S.openCarrierMenu) === String(d.cmenu)) ? null : d.cmenu;
+          render();
+          return;
+        }
+        if (d.cclose) {
+          S.openCarrierMenu = null;
+          render();
+          return;
+        }
         if (b.id === 'btnEdit') { S.edit = !S.edit; render(); return; }
         if (b.id === 'btnSyncNow' || d.syncnow) { forceSyncNow(); return; }
         if (b.id === 'btnShareLink' || d.copylink) { copyShareLink(); return; }
@@ -1778,6 +1903,51 @@
         if (el.dataset.pickwho) {
           S.who = el.value;
           store.set('konvoi.who', S.who);
+          render();
+          return;
+        }
+        if (el.dataset.filtermember) {
+          S.filter = el.value || 'all';
+          render();
+          return;
+        }
+        if (el.dataset.ctoggle != null) {
+          var uid = el.dataset.ctoggle, val = el.dataset.cval;
+          var curTrip = trip();
+          if (!curTrip) return;
+          var names = memberNames(curTrip.data);
+          var pObj = byUid(curTrip.data.pack, uid);
+          var rawWho = S.state[key('w', uid)] != null ? S.state[key('w', uid)] : (pObj ? pObj.who : '');
+          var parsed = parseCarriers(rawWho, names);
+          if (val === 'ALL') {
+            parsed = parsed.all ? { all: false, picked: [], extra: '' } : { all: true, picked: [], extra: '' };
+          } else {
+            parsed.all = false;
+            var idx = parsed.picked.indexOf(val);
+            if (idx > -1) parsed.picked.splice(idx, 1);
+            else parsed.picked.push(val);
+          }
+          var formatted = formatCarriers(parsed);
+          setState(key('w', uid), formatted);
+          mutate(function (x) { var p = byUid(x.pack, uid); if (p) p.who = formatted; }, false);
+          S.openCarrierMenu = uid;
+          render();
+          return;
+        }
+        if (el.dataset.ccustom != null) {
+          var cuid = el.dataset.ccustom;
+          var curTrip2 = trip();
+          if (!curTrip2) return;
+          var names2 = memberNames(curTrip2.data);
+          var pObj2 = byUid(curTrip2.data.pack, cuid);
+          var rawWho2 = S.state[key('w', cuid)] != null ? S.state[key('w', cuid)] : (pObj2 ? pObj2.who : '');
+          var parsed2 = parseCarriers(rawWho2, names2);
+          parsed2.all = false;
+          parsed2.extra = el.value.trim();
+          var formatted2 = formatCarriers(parsed2);
+          setState(key('w', cuid), formatted2);
+          mutate(function (x) { var p = byUid(x.pack, cuid); if (p) p.who = formatted2; }, false);
+          S.openCarrierMenu = cuid;
           render();
           return;
         }
