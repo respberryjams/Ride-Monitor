@@ -1,16 +1,13 @@
-<!doctype html>
-<html lang="ms">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6b1e3a">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Tripcrew">
   <title>Tripcrew</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Crect width='36' height='36' rx='10' fill='%23d9a441'/%3E%3Cpath d='M9 27C9 20 17 24 19 18.5C20 16 22 17.5 25 17.5' fill='none' stroke='%236b1e3a' stroke-width='2.6' stroke-linecap='round'/%3E%3Ccircle cx='9' cy='27' r='3' fill='%236b1e3a'/%3E%3Cpath d='M25 5a5.2 5.2 0 0 1 5.2 5.2c0 3.8-5.2 8.3-5.2 8.3s-5.2-4.5-5.2-8.3A5.2 5.2 0 0 1 25 5z' fill='%236b1e3a'/%3E%3Ccircle cx='25' cy='10.2' r='1.9' fill='%23d9a441'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito+Sans:wght@400;600;700&display=swap">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600;9..144,600;9..144,700&family=Nunito+Sans:wght@400;600;700&display=swap">
   <style>
     :root {
       color-scheme: light;
@@ -54,8 +51,15 @@
     .bar-top { display: flex; align-items: center; gap: 8px; padding-block: 10px; flex-wrap: wrap; }
     .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
     .shield { flex: none; width: 38px; height: 38px; }
-    .brand h1 { font-size: 1.5rem; line-height: 1; text-transform: none; }
-    .brand small { display: block; font-family: var(--body); font-size: .75rem; opacity: .88; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+    .brand h1 { font-size: 1.5rem; line-height: 1; text-transform: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .brand small { display: block; font-family: var(--body); font-size: .75rem; opacity: .88; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+    .sync-badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--body); font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 99px; background: rgba(47,122,85,.35); color: #a7f3d0; border: 1px solid rgba(167,243,208,.4); vertical-align: middle; }
+    .sync-badge.local { background: rgba(255,255,255,.15); color: #fde68a; border-color: rgba(253,230,138,.4); }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; display: inline-block; }
+    .sync-badge.local .sync-dot { background: #fbbf24; }
+    @keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.8); } }
+    .sync-badge:not(.local) .sync-dot { animation: pulseDot 2s infinite; }
+
     .trip-select { background: rgba(255,255,255,.12); color: var(--on-bar); border: 1px solid rgba(255,255,255,.35); border-radius: 99px; padding: 7px 12px; font: inherit; max-width: 100%; }
     .trip-select option { color: #13211a; background: #fff; }
     .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 8px 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
@@ -63,7 +67,7 @@
     .btn.wa { background: var(--wa); color: var(--wa-ink); border-color: var(--wa); }
     .btn.sm { padding: 6px 12px; font-size: .85rem; }
     .btn.danger { color: var(--red); }
-    .bar .btn:not(.sign):not(.wa) { background: rgba(255,255,255,.12); color: var(--on-bar); border-color: rgba(255,255,255,.35); padding-inline: 13px; }
+    .bar .btn:not(.sign):not(.wa) { background: rgba(255,255,255,.12); color: var(--on-bar); border-color: rgba(255,255,255,.35); padding-inline: 12px; }
     .btn[aria-pressed="true"], .bar .btn[aria-pressed="true"] { background: var(--sign); color: #1b1500; border-color: var(--sign); }
     .tabs { display: none; }
 
@@ -198,17 +202,18 @@
     @media (max-width: 720px) {
       html { -webkit-tap-highlight-color: transparent; }
       body { overscroll-behavior-y: none; font-size: 16.5px; }
-      .bar-top { padding-block: 10px; gap: 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; }
+      .bar-top { padding-block: 10px; gap: 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; }
       .bar-top .brand { grid-column: 1; margin: 0; }
       .brand small { max-width: 100%; }
-      #btnShareLink { grid-column: 2; }
-      #btnEdit { grid-column: 3; }
+      #btnSyncNow { grid-column: 2; padding-inline: 10px; }
+      #btnShareLink { grid-column: 3; padding-inline: 10px; }
+      #btnEdit { grid-column: 4; padding-inline: 10px; }
       .trip-select { grid-column: 1 / -1; width: 100%; min-height: 44px; font-size: 16px; border-radius: 12px; }
       .top-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .brand h1 { font-size: 1.3rem; }
+      .brand h1 { font-size: 1.25rem; }
       .brand small { font-size: .72rem; }
-      .shield { width: 34px; height: 34px; }
-      .bar .btn { min-height: 42px; border-radius: 12px; padding-inline: 11px; }
+      .shield { width: 32px; height: 32px; }
+      .bar .btn { min-height: 40px; border-radius: 12px; font-size: .85rem; }
       main { padding-block: 14px 124px; gap: 14px; }
       .panel { border-radius: 16px; padding: 15px; }
       .hero { border-radius: 20px; padding: 20px 18px; }
@@ -262,11 +267,15 @@
             <path d="M25 5a5.200 5.200 0 0 1 5.200 5.200c0 3.800-5.200 8.300-5.200 8.300s-5.200-4.500-5.200-8.300A5.200 5.200 0 0 1 25 5z" fill="#6b1e3a"/>
             <circle cx="25" cy="10.200" r="1.900" fill="#d9a441"/>
           </svg>
-          <div><h1>Tripcrew</h1><small id="subtitle"></small></div>
+          <div>
+            <h1>Tripcrew <span id="syncBadge" class="sync-badge local"><i class="sync-dot"></i><span id="syncBadgeTxt">Local</span></span></h1>
+            <small id="subtitle"></small>
+          </div>
         </div>
         <label class="small" for="tripSel" style="position:absolute;left:-9999px">Choose trip</label>
         <select id="tripSel" class="trip-select"></select>
-        <button class="btn" id="btnShareLink" type="button" title="Salin link kongsi live">🔗 Share</button>
+        <button class="btn" id="btnSyncNow" type="button" title="Tarik & hantar kemas kini sekarang">🔄 Sync</button>
+        <button class="btn" id="btnShareLink" type="button" title="Salin link bilik">🔗</button>
         <button class="btn" id="btnEdit" type="button" aria-pressed="false">Edit</button>
         <div class="top-actions">
           <button class="btn" id="btnNewTop" type="button" data-new="1">+ New Trip</button>
@@ -455,7 +464,8 @@
         state: {},
         syncMode: 'Local',
         syncTimer: null,
-        lastSyncTs: 0
+        lastSyncTs: 0,
+        lastSyncTimeStr: ''
       };
       try { S.imported = JSON.parse(store.get('konvoi.trips') || '[]'); } catch (e) { S.imported = []; }
       try { S.state = JSON.parse(store.get('konvoi.state') || '{}'); } catch (e) { S.state = {}; }
@@ -552,6 +562,10 @@
       function dayDiff(iso) { var p = iso.split('-'); var a = new Date(+p[0], +p[1] - 1, +p[2]); var n = new Date(); n = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((a - n) / 864e5); }
       function fmtDate(iso) { if (!iso) return ''; var p = iso.split('-'); var M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return +p[2] + ' ' + M[+p[1] - 1] + ' ' + p[0]; }
       function linkify(t) { return esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">Open link ↗</a>'); }
+      function fmtClock(ts) {
+        var d = ts ? new Date(ts) : new Date();
+        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+      }
 
       function getLimiter(t) {
         var r = t.members.filter(function (m) { return m.range > 0; });
@@ -591,9 +605,48 @@
         'https://gundb-relay-mlcl.onrender.com/gun'
       ];
 
+      function applyIncomingPayload(data, silent) {
+        if (!data || !data.blob) return false;
+        var ts = Number(data.updatedAt) || 0;
+        if (ts <= S.lastSyncTs) return false;
+        S.lastSyncTs = ts;
+        S.lastSyncTimeStr = fmtClock(ts);
+        try {
+          var parsed = JSON.parse(data.blob);
+          if (parsed.state && typeof parsed.state === 'object') {
+            S.state = parsed.state;
+            store.set('konvoi.state', JSON.stringify(S.state));
+          }
+          if (parsed.edits && typeof parsed.edits === 'object') {
+            S.edits = parsed.edits;
+            for (var ek in S.edits) ensureIds(S.edits[ek]);
+            store.set('konvoi.edits', JSON.stringify(S.edits));
+          }
+          if (Array.isArray(parsed.imported)) {
+            S.imported = parsed.imported;
+            S.imported.forEach(function (x) { ensureIds(x.data); });
+            saveTrips();
+          }
+          if (typeof parsed.hideSample === 'boolean') {
+            S.hideSample = parsed.hideSample;
+            store.set('konvoi.hideSample', S.hideSample ? '1' : '0');
+          }
+          if (parsed.tripId) {
+            S.tripId = parsed.tripId;
+            store.set('konvoi.trip', S.tripId);
+          }
+          rerenderSoft();
+          if (!silent) toast('Data dikemas kini secara automatik (' + S.lastSyncTimeStr + ').');
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
       function connectLiveSync() {
         if (!window.Gun) {
           S.syncMode = 'Local';
+          renderHeader();
           return;
         }
         try {
@@ -602,52 +655,25 @@
           }
           if (roomNode && typeof roomNode.off === 'function') roomNode.off();
           roomNode = gun.get('tripcrew-live-v1').get(roomId);
-          S.syncMode = 'Live P2P';
+          S.syncMode = 'Live';
           renderHeader();
 
           roomNode.on(function (data) {
-            if (!data || !data.blob) return;
-            var ts = Number(data.updatedAt) || 0;
-            if (ts <= S.lastSyncTs) return;
-            S.lastSyncTs = ts;
-            try {
-              var parsed = JSON.parse(data.blob);
-              if (parsed.state && typeof parsed.state === 'object') {
-                S.state = parsed.state;
-                store.set('konvoi.state', JSON.stringify(S.state));
-              }
-              if (parsed.edits && typeof parsed.edits === 'object') {
-                S.edits = parsed.edits;
-                for (var ek in S.edits) ensureIds(S.edits[ek]);
-                store.set('konvoi.edits', JSON.stringify(S.edits));
-              }
-              if (Array.isArray(parsed.imported)) {
-                S.imported = parsed.imported;
-                S.imported.forEach(function (x) { ensureIds(x.data); });
-                saveTrips();
-              }
-              if (typeof parsed.hideSample === 'boolean') {
-                S.hideSample = parsed.hideSample;
-                store.set('konvoi.hideSample', S.hideSample ? '1' : '0');
-              }
-              if (parsed.tripId) {
-                S.tripId = parsed.tripId;
-                store.set('konvoi.trip', S.tripId);
-              }
-              rerenderSoft();
-            } catch (e) {}
+            applyIncomingPayload(data, false);
           });
         } catch (e) {
           S.syncMode = 'Local';
+          renderHeader();
         }
       }
 
-      function pushRoomSync() {
+      function pushRoomSync(immediate) {
         if (!roomNode) return;
         clearTimeout(S.syncTimer);
-        S.syncTimer = setTimeout(function () {
+        var run = function () {
           var now = Date.now();
           S.lastSyncTs = now;
+          S.lastSyncTimeStr = fmtClock(now);
           var blob = JSON.stringify({
             tripId: S.tripId,
             hideSample: !!S.hideSample,
@@ -656,7 +682,29 @@
             imported: S.imported
           });
           roomNode.put({ updatedAt: now, blob: blob });
-        }, 180);
+          renderHeader();
+        };
+        if (immediate) run();
+        else S.syncTimer = setTimeout(run, 180);
+      }
+
+      function forceSyncNow() {
+        if (!window.Gun) {
+          toast('Tiada sambungan internet untuk sync.');
+          return;
+        }
+        connectLiveSync();
+        if (roomNode) {
+          roomNode.once(function (data) {
+            var pulled = applyIncomingPayload(data, true);
+            if (pulled) {
+              toast('Berjaya tarik kemas kini terkini (' + S.lastSyncTimeStr + ')!');
+            } else {
+              pushRoomSync(true);
+              toast('Semua data sudah selaras (' + S.lastSyncTimeStr + ').');
+            }
+          });
+        }
       }
 
       function setState(k, v) {
@@ -694,12 +742,12 @@
         var url = shareUrl();
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(url).then(function () {
-            toast('Link kongsi disalin: ' + url);
+            toast('Link bilik disalin (hantar sekali sahaja): ' + url);
           }).catch(function () {
-            prompt('Salin link kongsi ini:', url);
+            prompt('Salin link bilik ini:', url);
           });
         } else {
-          prompt('Salin link kongsi ini:', url);
+          prompt('Salin link bilik ini:', url);
         }
       }
 
@@ -809,8 +857,17 @@
       /* ---------- views ---------- */
       function renderHeader() {
         var t = trip() || { data: { days: [], members: [] } };
-        var syncTag = ' · ' + S.syncMode + ' (' + roomId + ')';
-        $('subtitle').textContent = (t.data.days.length ? t.data.days.length + ' days · ' + t.data.members.length + ' members' + (t.data.days[0].date ? ' · ' + fmtDate(t.data.days[0].date) : '') : 'Group trip planner') + syncTag;
+        var badge = $('syncBadge'), badgeTxt = $('syncBadgeTxt');
+        if (badge && badgeTxt) {
+          if (S.syncMode === 'Live') {
+            badge.classList.remove('local');
+            badgeTxt.textContent = S.lastSyncTimeStr ? 'Live · ' + S.lastSyncTimeStr : 'Live';
+          } else {
+            badge.classList.add('local');
+            badgeTxt.textContent = 'Local';
+          }
+        }
+        $('subtitle').textContent = (t.data.days.length ? t.data.days.length + ' days · ' + t.data.members.length + ' members' + (t.data.days[0].date ? ' · ' + fmtDate(t.data.days[0].date) : '') : 'Group trip planner') + ' · Room: ' + roomId;
         $('tripSel').innerHTML = trips().map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === S.tripId ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('');
         var IC = {
           summary: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
@@ -906,7 +963,7 @@
           notesHtml = '<section class="panel"><h2>Trip notes</h2><ul class="list">' + notes.map(function (n) { return '<li><span class="grow">' + esc(n) + '</span></li>'; }).join('') + '</ul></section>';
         }
         var stayHtml = days.map(function (d) { return d.stay ? '<li><span class="pill">' + esc(d.label) + '</span><span class="grow">' + esc(d.stay) + '</span></li>' : ''; }).join('');
-        var quickShare = '<div class="links quick-actions" style="justify-content:flex-end"><button class="btn sm" type="button" data-copylink="1">🔗 Copy Share Link</button><button class="btn sm wa" type="button" data-whatsapp="1">📲 Share to WhatsApp</button><button class="btn sm" type="button" data-export="1">📥 Export Excel</button></div>';
+        var quickShare = '<div class="links quick-actions" style="justify-content:flex-end"><button class="btn sm" type="button" data-syncnow="1">🔄 Sync Now</button><button class="btn sm" type="button" data-copylink="1">🔗 Copy Room Link</button><button class="btn sm wa" type="button" data-whatsapp="1">📲 Share to WhatsApp</button></div>';
         return (S.edit ? '<section class="panel"><h2>Trip name</h2>' + inp('trip', 'x', 'name', t.name, 'Trip name') + '</section>' : '') +
           '<section class="hero">' + hero + '</section>' +
           quickShare +
@@ -1092,9 +1149,9 @@
           return '<div class="tripitem"><div class="grow"><b>' + esc(x.name) + '</b><div class="muted small">' + x.data.days.length + ' days · ' + x.data.members.length + ' members · ' + x.data.pack.length + ' items</div></div>' +
             (x.builtin && S.edits[x.id] ? '<button class="btn sm" data-resetedit="1">Reset to original</button>' : '') + (x.id === S.tripId ? '<span class="pill sign">Open</span>' : '<button class="btn sm" data-open="' + x.id + '">Open</button>') + del + '</div>';
         }).join('');
-        return '<section class="panel"><h2>Share, Export & Room (' + esc(roomId) + ')</h2>' +
-          '<p class="muted small" style="margin-top:0">Penyegerakan <b>Live P2P</b> aktif secara automatik tanpa perlu akaun atau konfigurasi. Kongsi pautan bilik ini supaya apabila Kamal atau mana-mana ahli mengemas kini <i>tick</i>, pembawa barang, atau jadual, semua pengguna lain melihat perubahan secara langsung.</p>' +
-          '<div class="links quick-actions"><button class="btn sign" type="button" data-copylink="1">🔗 Copy Share Link</button><button class="btn wa" type="button" data-whatsapp="1">📲 Share to WhatsApp</button><button class="btn" type="button" data-export="1">📥 Export Excel (.xlsx)</button></div></section>' +
+        return '<section class="panel"><h2>Live Sync Room (' + esc(roomId) + ')</h2>' +
+          '<p class="muted small" style="margin-top:0">Semua ahli yang membuka pautan bilik ini akan berkongsi data secara automatik. Apabila anda tekan <b>Edit</b>, ubah jadual, atau <i>tick</i> senarai barang, perubahan terus dihantar ke bilik ini tanpa perlu kongsi ke WhatsApp. Gunakan butang <b>🔄 Sync</b> di atas untuk semak kemas kini segera.</p>' +
+          '<div class="links quick-actions"><button class="btn sign" type="button" data-syncnow="1">🔄 Sync Now</button><button class="btn" type="button" data-copylink="1">🔗 Copy Room Link</button><button class="btn" type="button" data-export="1">📥 Export Excel (.xlsx)</button></div></section>' +
           '<section class="panel"><h2>Add a trip</h2><div class="drop" id="drop"><div>Tap below to pick an .xlsx file or drag one here</div><div class="links" style="justify-content:center"><button class="btn sign" type="button" data-new="1">+ New Trip</button><button class="btn" type="button" data-pick="1">Choose file</button></div><div class="muted small">Files are processed locally in your browser.</div></div></section>' +
           '<section class="panel"><h2>Your trips</h2>' + items + (S.hideSample ? '<div class="addbar"><button class="btn sm" data-loadsample="1">Load sample trip</button></div>' : '') + '</section>' +
           '<section class="panel"><h2>Recognised Excel sheet formats</h2><div class="scroll"><table class="fmt"><thead><tr><th>Type</th><th>How it is detected</th><th>Columns</th></tr></thead><tbody>' +
@@ -1110,7 +1167,7 @@
         if (!trip()) { $('main').innerHTML = viewWelcome(); wireDrop(); return; }
         var t = trip().data;
         $('btnEdit').setAttribute('aria-pressed', S.edit); $('btnEdit').textContent = S.edit ? 'Done' : 'Edit';
-        $('main').innerHTML = (S.edit && S.tab !== 'files' ? '<div class="banner">Edit mode active. Changes are saved automatically.</div>' : '') + VIEWS[S.tab](t);
+        $('main').innerHTML = (S.edit && S.tab !== 'files' ? '<div class="banner">Edit mode active. Changes are synced live automatically.</div>' : '') + VIEWS[S.tab](t);
         wireDrop();
       }
       function rerenderSoft() {
@@ -1124,7 +1181,7 @@
       function toast(msg, undo) {
         var el = $('toast'); el.textContent = msg; el.hidden = false;
         if (undo) { var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Undo'; b.onclick = function () { el.hidden = true; undo(); }; el.appendChild(b); }
-        clearTimeout(toastT); toastT = setTimeout(function () { el.hidden = true; }, undo ? 8000 : 5000);
+        clearTimeout(toastT); toastT = setTimeout(function () { el.hidden = true; }, undo ? 8000 : 4500);
       }
       function importFile(file) {
         if (!file) return;
@@ -1142,7 +1199,7 @@
             var rec = { id: id, name: data.name, data: data };
             S.imported.push(rec); saveTrips();
             S.tripId = id; S.day = null; store.set('konvoi.trip', id); S.tab = 'summary'; ensureRoomInUrl(roomId);
-            pushRoomSync();
+            pushRoomSync(true);
             render();
             toast(data.name + ': ' + data.days.length + ' days, ' + data.members.length + ' members, ' + data.pack.length + ' items.');
           } catch (e) { toast('Could not parse the file as an Excel workbook.'); }
@@ -1160,10 +1217,11 @@
 
       /* ---------- events ---------- */
       document.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-export],[data-whatsapp],[data-copylink],#btnEdit,#btnImport,#btnShareLink');
+        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-export],[data-whatsapp],[data-copylink],[data-syncnow],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
         if (!b) return;
         var d = b.dataset;
         if (b.id === 'btnEdit') { S.edit = !S.edit; render(); return; }
+        if (b.id === 'btnSyncNow' || d.syncnow) { forceSyncNow(); return; }
         if (b.id === 'btnShareLink' || d.copylink) { copyShareLink(); return; }
         if (d.export) { if (trip()) exportExcel(trip().data); return; }
         if (d.whatsapp) { if (trip()) shareWhatsApp(trip().data); return; }
@@ -1177,13 +1235,13 @@
           var nb = blankTrip(), nid = 't' + Date.now().toString(36); ensureIds(nb);
           S.imported.push({ id: nid, name: nb.name, data: nb }); saveTrips();
           S.tripId = nid; S.day = null; store.set('konvoi.trip', nid); S.tab = 'summary'; ensureRoomInUrl(roomId); S.edit = true;
-          pushRoomSync();
+          pushRoomSync(true);
           render();
           toast('Created a blank new trip.');
           return;
         }
-        if (d.loadsample) { S.hideSample = false; store.set('konvoi.hideSample', '0'); S.tripId = 'dec2026'; pushRoomSync(); render(); return; }
-        if (d.resetedit) { delete S.edits.dec2026; store.set('konvoi.edits', JSON.stringify(S.edits)); pushRoomSync(); render(); toast('Restored to the original trip.'); return; }
+        if (d.loadsample) { S.hideSample = false; store.set('konvoi.hideSample', '0'); S.tripId = 'dec2026'; pushRoomSync(true); render(); return; }
+        if (d.resetedit) { delete S.edits.dec2026; store.set('konvoi.edits', JSON.stringify(S.edits)); pushRoomSync(true); render(); toast('Restored to the original trip.'); return; }
         if (d.add) {
           mutate(function (x) {
             if (d.add === 'pack') x.pack.push({ uid: nextUid(x.pack), item: '', who: '', note: '' });
@@ -1213,14 +1271,14 @@
         if (d.tab) { S.tab = d.tab; store.set('konvoi.tab', S.tab); ensureRoomInUrl(roomId); window.scrollTo(0, 0); }
         else if (d.day) S.day = d.day;
         else if (d.filter) S.filter = d.filter;
-        else if (d.open) { S.tripId = d.open; S.day = null; store.set('konvoi.trip', S.tripId); pushRoomSync(); }
+        else if (d.open) { S.tripId = d.open; S.day = null; store.set('konvoi.trip', S.tripId); pushRoomSync(true); }
         else if (d.del) S.confirmDel = d.del;
         else if (d.delno) S.confirmDel = null;
         else if (d.delyes) {
           if (d.delyes === 'dec2026') { S.hideSample = true; store.set('konvoi.hideSample', '1'); }
           else { S.imported = S.imported.filter(function (x) { return x.id !== d.delyes; }); saveTrips(); }
           if (S.tripId === d.delyes) S.tripId = ''; S.confirmDel = null;
-          pushRoomSync();
+          pushRoomSync(true);
         }
         render();
       });
@@ -1228,7 +1286,7 @@
       document.addEventListener('change', function (e) {
         var el = e.target;
         if (el.id === 'fileIn') { importFile(el.files[0]); el.value = ''; return; }
-        if (el.id === 'tripSel') { S.tripId = el.value; S.day = null; store.set('konvoi.trip', S.tripId); pushRoomSync(); render(); return; }
+        if (el.id === 'tripSel') { S.tripId = el.value; S.day = null; store.set('konvoi.trip', S.tripId); pushRoomSync(true); render(); return; }
         if (el.dataset.pickwho) {
           S.who = el.value;
           store.set('konvoi.who', S.who);
@@ -1269,6 +1327,12 @@
             else if (k === 'day') { var dd = findDay(x, id); if (dd) dd[f] = v.trim(); }
             else if (k === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes[+id] = v.trim(); }
           }, false);
+        }
+      });
+
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && roomNode) {
+          roomNode.once(function (data) { applyIncomingPayload(data, true); });
         }
       });
 
