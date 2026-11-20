@@ -186,7 +186,7 @@
     .shortcuts { margin-top: 8px; }
 
     /* bottom nav */
-    .bnav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 9;
+    .bnav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 9;
       background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(0,0,0,.08);
       padding: 6px max(4px, calc((100% - 980px) / 2), env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(4px, calc((100% - 980px) / 2), env(safe-area-inset-left, 0px)); }
     .bnav button { background: none; border: 0; display: grid; justify-items: center; gap: 2px; padding: 5px 2px 4px; color: var(--mute); font-size: .7rem; font-weight: 600; letter-spacing: .01em; min-width: 0; border-radius: 12px; }
@@ -246,6 +246,34 @@
     table.fmt { width: 100%; border-collapse: collapse; font-size: .9rem; }
     table.fmt th, table.fmt td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
     .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .fin-stack { display: grid; gap: 12px; }
+    .fin-block { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
+    .fin-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+    .fin-head b { font-family: var(--display); font-size: 1.15rem; font-weight: 600; margin-right: auto; overflow-wrap: anywhere; }
+    .fin-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .fin-chips label { cursor: pointer; }
+    .fin-chips input { margin: 0 4px 0 0; accent-color: var(--accent); }
+    .fin-chips label.chip.on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+    .fin-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--line); }
+    .fin-row:first-child { border-top: 0; }
+    .fin-row .grow { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+    .fin-row .amt { font-family: var(--display); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .fin-edit { display: grid; grid-template-columns: 1fr 120px; gap: 6px; width: 100%; }
+    .fin-edit .wide { grid-column: 1 / -1; }
+    .fin-edit .btn { grid-column: 1 / -1; justify-self: end; }
+    @media (max-width: 560px) { .fin-edit { grid-template-columns: 1fr; } }
+    .fin-total { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; }
+    .fin-total b { display: block; font-family: var(--display); font-size: clamp(1.6rem, 7vw, 3rem); font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .fin-total b.red { color: var(--red); } .fin-total b.ok { color: var(--ok); }
+    .fin-pp { display: grid; gap: 4px; min-width: 0; }
+    .fin-pp input { width: 160px; max-width: 100%; }
+    .fin-form { display: grid; grid-template-columns: minmax(0, 1.2fr) 110px minmax(0, 1fr) auto; gap: 8px; margin-bottom: 12px; }
+    .fin-form input, .fin-form select { min-width: 0; font: inherit; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+    .fin-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+    @media (max-width: 560px) { .fin-form { grid-template-columns: 1fr 1fr; } .fin-form button { grid-column: 1 / -1; } }
+    .fin-custom { display: inline-flex; gap: 6px; align-items: center; }
+    .fin-custom input { width: 96px; min-width: 0; font: inherit; padding: 5px 10px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+    .stat b.money { font-size: clamp(.95rem, 4.2vw, 1.3rem); overflow-wrap: anywhere; white-space: normal; text-overflow: clip; }
     .empty { padding: 18px 0; color: var(--mute); }
 
     .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; max-width: min(92vw, 520px); z-index: 20; font-weight: 500; box-shadow: 0 6px 20px rgba(0,0,0,.25); overflow-wrap: anywhere; }
@@ -366,7 +394,7 @@
         <label class="small" for="tripSel" style="position:absolute;left:-9999px">Choose trip</label>
         <select id="tripSel" class="trip-select"></select>
         <button class="btn" id="btnSyncNow" type="button" title="Push &amp; pull the latest updates now">🔄 Sync</button>
-        <button class="btn" id="btnShareLink" type="button" title="Copy room link">🔗</button>
+        <button class="btn" id="btnShareLink" type="button" title="Copy room link" hidden>🔗</button>
         <button class="btn" id="btnEdit" type="button" aria-pressed="false">Edit</button>
         <div class="top-actions">
           <button class="btn" id="btnNewTop" type="button" data-new="1">+ New Trip</button>
@@ -508,7 +536,7 @@
   <script>
     (function () {
       'use strict';
-      var TABS = [['summary', 'Summary'], ['schedule', 'Schedule'], ['members', 'Members'], ['packing', 'Packing'], ['fuel', 'Fuel']];
+      var TABS = [['summary', 'Summary'], ['schedule', 'Schedule'], ['members', 'Members'], ['packing', 'Packing'], ['fuel', 'Fuel'], ['finance', 'Finance']];
       var $ = function (id) { return document.getElementById(id); };
       var esc = function (x) { return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
       var store = {
@@ -801,12 +829,14 @@
       function sectionsOf(d) {
         var o = {};
         o['meta'] = JSON.stringify({
-          name: d.name, limiterUid: d.limiterUid == null ? null : d.limiterUid,
+          name: d.name, fund: d.fund || 0, limiterUid: d.limiterUid == null ? null : d.limiterUid,
           notes: d.notes || [], packNotes: d.packNotes || [],
           dayIds: (d.days || []).map(function (x) { return x.id; })
         });
         o['members'] = JSON.stringify(d.members || []);
         o['pack'] = JSON.stringify(d.pack || []);
+        o['expenses'] = JSON.stringify(d.expenses || []);
+        o['payments'] = JSON.stringify(d.payments || []);
         (d.days || []).forEach(function (y) { o['days/' + y.id] = JSON.stringify(y); });
         return o;
       }
@@ -815,10 +845,12 @@
           if (!node || !node.meta) return null;
           var meta = JSON.parse(node.meta);
           var d = {
-            name: meta.name || 'Trip', limiterUid: meta.limiterUid == null ? null : meta.limiterUid,
+            name: meta.name || 'Trip', fund: +meta.fund || 0, limiterUid: meta.limiterUid == null ? null : meta.limiterUid,
             notes: meta.notes || [], packNotes: meta.packNotes || [], warnings: [],
             members: node.members ? JSON.parse(node.members) : [],
             pack: node.pack ? JSON.parse(node.pack) : [],
+            expenses: node.expenses ? JSON.parse(node.expenses) : [],
+            payments: node.payments ? JSON.parse(node.payments) : [],
             days: []
           };
           var dn = node.days || {}, used = {};
@@ -969,6 +1001,7 @@
       }
       function mutate(fn, redraw, undoMsg) {
         var rec = trip(), prev = JSON.stringify(rec.data), d = JSON.parse(prev);
+        d.expenses = d.expenses || []; d.payments = d.payments || []; d.fund = +d.fund || 0;
         fn(d); commit(rec, d);
         if (redraw) render(); else renderHeader();
         if (undoMsg) toast(undoMsg, function () { commit(trip(), JSON.parse(prev)); render(); });
@@ -1080,6 +1113,7 @@
           members: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.500 2.700-6 6-6s6 2.500 6 6"/><circle cx="17" cy="9" r="2.500"/><path d="M17 14c2.500 0 4 2 4 5"/>',
           packing: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
           fuel: '<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M4 20h11M14 9h2.500a1.500 1.500 0 0 1 1.500 1.500V16a1.500 1.500 0 0 0 3 0V9l-2.500-2.500"/><path d="M7.500 8h4"/>',
+          finance: '<path d="M3 7h15a3 3 0 0 1 3 3v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7l12-3v3"/><circle cx="16.5" cy="13.5" r="1.2"/>',
           files: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/>'
         };
         $('bnav').innerHTML = TABS.map(function (x) { return '<button type="button" data-tab="' + x[0] + '"' + (x[0] === S.tab ? ' aria-current="page"' : '') + '><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + IC[x[0]] + '</svg></span><span>' + x[1] + '</span></button>'; }).join('');
@@ -1182,7 +1216,7 @@
           notesHtml = '<section class="panel"><h2>Trip notes</h2><ul class="list">' + notes.map(function (n) { return '<li><span class="grow">' + esc(n) + '</span></li>'; }).join('') + '</ul></section>';
         }
         var stayHtml = days.map(function (d) { return d.stay ? '<li><span class="pill">' + esc(d.label) + '</span><span class="grow">' + esc(d.stay) + '</span></li>' : ''; }).join('');
-        var quickShare = '<div class="links quick-actions" style="justify-content:flex-end"><button class="btn sm" type="button" data-syncnow="1">🔄 Sync Now</button><button class="btn sm" type="button" data-copylink="1">🔗 Copy Room Link</button></div>';
+        var quickShare = '<div class="links quick-actions" style="justify-content:flex-end"><button class="btn sm" type="button" data-syncnow="1">🔄 Sync Now</button></div>';
         return (S.edit ? '<section class="panel"><h2>Trip name</h2>' + inp('trip', 'x', 'name', t.name, 'Trip name') + '</section>' : '') +
           '<section class="hero">' + hero + '</section>' +
           quickShare +
@@ -1366,6 +1400,149 @@
           (any ? blocks : '<section class="panel"><p class="empty">No distance estimates ("~N km") found in schedule comments.</p></section>');
       }
 
+      /* ---------- finance: running fund + payment log ---------- */
+      function fmtRM(n) {
+        var v = +n || 0;
+        return (v < 0 ? '-' : '') + 'RM ' + Math.abs(v).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      function fundKey(nm) { return key('cp', 'fund', encodeURIComponent(String(nm).toLowerCase())); }
+      function paidRows(t) {
+        var names = memberNames(t), pp = +t.fund || 0, entries = t.payments || [];
+        return names.map(function (nm) {
+          var low = nm.toLowerCase();
+          var mine = entries.filter(function (p) { return String(p.who || '').trim().toLowerCase() === low; });
+          var legacy = !mine.length && !!S.state[fundKey(nm)];
+          var paid = legacy ? pp : mine.reduce(function (a, p) { return a + (+p.amount || 0); }, 0);
+          return { name: nm, paid: paid, legacy: legacy, pct: pp ? Math.min(100, paid / pp * 100) : 0, lunas: pp > 0 && paid >= pp - 0.005 };
+        });
+      }
+      function finData(t) {
+        var names = memberNames(t), pp = +t.fund || 0, entries = t.payments || [], rows = paidRows(t);
+        var collected = entries.reduce(function (a, p) { return a + (+p.amount || 0); }, 0) +
+          rows.reduce(function (a, r) { return a + (r.legacy ? r.paid : 0); }, 0);
+        var spent = (t.expenses || []).reduce(function (a, e) { return a + (+e.amount || 0); }, 0);
+        var target = names.length * pp;
+        return {
+          names: names, pp: pp, target: target, collected: collected, spent: spent, rows: rows,
+          lunasN: rows.filter(function (r) { return r.lunas; }).length,
+          cash: collected - spent,
+          outstanding: target - collected
+        };
+      }
+      function transactions(t) {
+        var list = [];
+        (t.payments || []).forEach(function (p) { list.push({ ts: p.ts || 0, kind: 'pay', label: p.who, note: p.note, amount: +p.amount || 0 }); });
+        (t.expenses || []).forEach(function (e) { list.push({ ts: e.ts || 0, kind: 'exp', label: e.item, note: e.note, amount: -(+e.amount || 0) }); });
+        list.sort(function (a, b) { return a.ts - b.ts; });
+        var bal = 0;
+        list.forEach(function (x) { bal += x.amount; x.bal = bal; });
+        return list;
+      }
+      /* old tick-box payments become one log entry the first time the log is changed */
+      function legacyMigrate(x) {
+        var entries = x.payments || [];
+        memberNames(x).forEach(function (nm) {
+          var low = nm.toLowerCase();
+          var has = entries.some(function (p) { return String(p.who || '').trim().toLowerCase() === low; });
+          if (!has && S.state[fundKey(nm)]) entries.push({ uid: nextUid(entries), who: nm, amount: +x.fund || 0, note: 'Old tick-box payment', ts: 0 });
+        });
+        x.payments = entries;
+      }
+      function addPayment(who, amt, note) {
+        mutate(function (x) {
+          legacyMigrate(x);
+          x.payments.push({ uid: nextUid(x.payments), who: who, amount: amt, note: note || '', ts: Date.now() });
+        }, true);
+      }
+      function addExpense(item, amt, note) {
+        mutate(function (x) {
+          x.expenses.push({ uid: nextUid(x.expenses), item: item, amount: amt, note: note || '', ts: Date.now() });
+        }, true);
+      }
+      function viewFinance(t) {
+        var f = finData(t), editing = S.edit, ex = t.expenses || [], entries = t.payments || [];
+        var stat = function (v, l, money) { return '<div class="stat"><b class="num' + (money ? ' money' : '') + '">' + v + '</b><span>' + l + '</span></div>'; };
+        var cashCls = f.cash < -0.005 ? 'red' : (f.cash > 0.005 ? 'ok' : '');
+        var outCls = f.outstanding > 0.005 ? 'amber' : (f.outstanding < -0.005 ? 'ok' : '');
+        var outTxt = f.outstanding > 0.005 ? fmtRM(f.outstanding) + ' still to collect' : (f.outstanding < -0.005 ? fmtRM(-f.outstanding) + ' surplus' : 'Fully collected');
+        var opts = function (cur, blank) {
+          return (blank ? '<option value="">— Select —</option>' : '') + f.names.map(function (nm) {
+            return '<option value="' + esc(nm) + '"' + (cur && String(cur).trim().toLowerCase() === nm.toLowerCase() ? ' selected' : '') + '>' + esc(nm) + '</option>';
+          }).join('');
+        };
+        var top = '<section class="panel"><div class="fin-total">' +
+          '<div><span class="small muted">Cash on hand</span><b class="num ' + cashCls + '">' + fmtRM(f.cash) + '</b>' +
+          '<span class="small muted">Collected minus spent. Goes red only if more was spent than collected.</span></div>' +
+          '<label class="fin-pp"><span class="small muted">Per person (RM)</span>' +
+          '<input type="number" min="0" step="0.01" class="ed" data-ed="fund" data-id="fund" data-f="pp" value="' + (f.pp || '') + '" placeholder="0.00" aria-label="Per person (RM)"></label>' +
+          '</div>' +
+          '<div class="stats" style="margin-top:12px">' + stat(fmtRM(f.target), 'Target', true) + stat(fmtRM(f.collected), 'Collected', true) +
+          stat(fmtRM(f.spent), 'Spent', true) + stat(f.lunasN + '/' + f.names.length, 'Settled') + '</div>' +
+          '<p class="small" style="margin:10px 0 0"><span class="pill ' + outCls + '">' + outTxt + '</span></p></section>';
+
+        var members = !f.names.length ? '<p class="empty">Add members on the Members tab first.</p>' :
+          '<div class="fin-stack">' + f.rows.map(function (r, i) {
+            var pill = !f.pp ? '' : (r.lunas ? '<span class="pill ok">Lunas</span>' : '<span class="pill amber">Baki ' + fmtRM(f.pp - r.paid) + '</span>');
+            var quick = [10, 20, 50].map(function (a) {
+              return '<button class="btn sm" type="button" data-pay="' + esc(r.name) + '" data-amt="' + a + '">+RM' + a + '</button>';
+            }).join('');
+            return '<div class="fin-block"><div class="fin-head"><b>' + esc(r.name) + '</b>' +
+              (r.legacy ? '<span class="pill">Old payment</span>' : '') + pill + '</div>' +
+              '<div class="meter"><i style="width:' + r.pct + '%"></i></div>' +
+              '<div class="num small">' + fmtRM(r.paid) + ' of ' + fmtRM(f.pp) + '</div>' +
+              '<div class="fin-quick">' + quick +
+              '<span class="fin-custom"><input type="number" min="0" step="0.01" id="cust-' + i + '" placeholder="RM" aria-label="Custom amount for ' + esc(r.name) + '">' +
+              '<button class="btn sm" type="button" data-paycustom="' + esc(r.name) + '" data-idx="' + i + '">Add</button></span></div></div>';
+          }).join('') + '</div>';
+        var members_panel = '<section class="panel"><h2>Per member</h2>' + members + '</section>';
+
+        var form = !f.names.length ? '' :
+          '<div class="fin-form"><select id="finWho" aria-label="Member">' + opts(null, true) + '</select>' +
+          '<input id="finAmt" type="number" min="0" step="0.01" placeholder="RM" aria-label="Amount">' +
+          '<input id="finNote" type="text" placeholder="Note (optional)" aria-label="Note">' +
+          '<button class="btn sm sign" type="button" data-addpay="1">+ Add payment</button></div>';
+        var legacyN = f.rows.filter(function (r) { return r.legacy; }).length;
+        var log = (entries.length ? '<ul class="list">' + entries.slice().reverse().map(function (p) {
+            return '<li><span class="grow"><b>' + esc(p.who) + '</b>' + (p.note ? ' <span class="muted small">· ' + esc(p.note) + '</span>' : '') + '</span>' +
+              '<span class="num">' + fmtRM(p.amount) + '</span>' +
+              (editing ? '<button class="btn sm danger" data-rm="pay" data-id="' + p.uid + '">Delete</button>' : '') + '</li>';
+          }).join('') + '</ul>' : '<p class="empty">No payments logged yet.</p>') +
+          (legacyN ? '<p class="muted small">' + legacyN + ' member(s) have an old tick-box payment. It moves into this log when you add a new payment.</p>' : '');
+        var pay_panel = '<section class="panel"><h2>Payment log</h2>' + form + log + '</section>';
+
+        var presets = ['Makan', 'Homestay', 'Minyak', 'Tol', 'Lain-lain'];
+        var expForm = '<div class="fin-chips">' + presets.map(function (p) {
+          return '<button class="chip" type="button" data-preset="' + esc(p) + '">' + esc(p) + '</button>';
+        }).join('') + '</div>' +
+          '<div class="fin-form"><input id="finItem" type="text" placeholder="Item, e.g. Makan" aria-label="Item">' +
+          '<input id="finExAmt" type="number" min="0" step="0.01" placeholder="RM" aria-label="Amount">' +
+          '<input id="finExNote" type="text" placeholder="Note (optional)" aria-label="Note">' +
+          '<button class="btn sm sign" type="button" data-addexp="1">+ Add expense</button></div>';
+        var exHtml = ex.map(function (e) {
+          if (editing) return '<div class="fin-row"><div class="fin-edit">' +
+            inp('exp', e.uid, 'item', e.item, 'Item') +
+            '<input type="number" min="0" step="0.01" class="ed" data-ed="exp" data-id="' + e.uid + '" data-f="amount" value="' + (e.amount || '') + '" placeholder="RM" aria-label="Amount">' +
+            inp('exp', e.uid, 'note', e.note, 'Note (optional)', ' style="grid-column:1/-1"') +
+            '<button class="btn sm danger" data-rm="exp" data-id="' + e.uid + '">Delete</button></div></div>';
+          return '<div class="fin-row"><span class="grow"><b>' + esc(e.item || 'Untitled') + '</b>' +
+            (e.note ? '<div class="small muted">' + linkify(e.note) + '</div>' : '') + '</span><span class="amt">-' + fmtRM(e.amount) + '</span></div>';
+        }).join('');
+        var spend = '<section class="panel"><h2>Expenses</h2>' + expForm +
+          (exHtml || '<p class="empty">No expenses yet.</p>') + '</section>';
+
+        var tx = transactions(t).slice().reverse();
+        var txHtml = tx.length ? '<ul class="list">' + tx.map(function (x) {
+          var sign = x.amount >= 0 ? '+' : '-';
+          var cls = x.kind === 'pay' ? 'ok' : 'red';
+          return '<li><span class="grow"><b>' + esc(x.label || 'Untitled') + '</b>' + (x.note ? ' <span class="muted small">· ' + esc(x.note) + '</span>' : '') + '</span>' +
+            '<span class="pill ' + cls + '">' + sign + fmtRM(Math.abs(x.amount)) + '</span>' +
+            '<span class="small muted num">bal ' + fmtRM(x.bal) + '</span></li>';
+        }).join('') + '</ul>' : '<p class="empty">No transactions yet.</p>';
+        var txPanel = '<section class="panel"><h2>Live transactions</h2><p class="muted small" style="margin-top:0">Every payment and expense, newest first, with the running cash balance after it.</p>' + txHtml + '</section>';
+
+        return top + members_panel + pay_panel + spend + txPanel;
+      }
+
       function blankTrip() {
         return { name: 'New Trip', limiterUid: null, days: [], members: [], notes: [], pack: [], packNotes: [], warnings: [] };
       }
@@ -1373,7 +1550,7 @@
         return '<section class="panel"><h2>Plan your first trip</h2><p class="muted">Keep your schedule, members, packing list, and fuel stops together in one place.</p>' +
           '<div class="links"><button class="btn sign" type="button" data-new="1">+ New Trip</button><button class="btn" type="button" data-pick="1">Import .xlsx</button><button class="btn" type="button" data-loadsample="1">Load sample trip</button></div></section>';
       }
-      var VIEWS = { summary: viewRingkasan, schedule: viewJadual, members: viewAhli, packing: viewBarangan, fuel: viewMinyak };
+      var VIEWS = { summary: viewRingkasan, schedule: viewJadual, members: viewAhli, packing: viewBarangan, fuel: viewMinyak, finance: viewFinance };
       function render() {
         renderHeader();
         if (!trip()) { $('main').innerHTML = viewWelcome(); wireDrop(); return; }
@@ -1430,7 +1607,7 @@
 
       /* ---------- events ---------- */
       document.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-export],[data-copylink],[data-syncnow],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
+        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-pay],[data-paycustom],[data-addpay],[data-preset],[data-addexp],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-export],[data-copylink],[data-syncnow],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
         if (!b) return;
         var d = b.dataset;
         if (b.id === 'btnEdit') { S.edit = !S.edit; render(); return; }
@@ -1454,10 +1631,28 @@
         }
         if (d.loadsample) { S.hideSample = false; store.set('konvoi.hideSample', '0'); S.tripId = 'dec2026'; queueWrite('meta/hideSample', null); render(); return; }
         if (d.resetedit) { delete S.edits.dec2026; store.set('konvoi.edits', JSON.stringify(S.edits)); queueWrite('trips/dec2026', null); render(); toast('Restored to the original trip.'); return; }
+        if (d.pay) { addPayment(d.pay, +d.amt); return; }
+        if (d.preset) { var pi = $('finItem'); if (pi) pi.value = d.preset; return; }
+        if (d.addexp) {
+          var ei = (($('finItem') || {}).value || '').trim(), ea = parseFloat(($('finExAmt') || {}).value) || 0, en = (($('finExNote') || {}).value || '').trim();
+          if (!ei || ea <= 0) { toast('Enter an item and an amount.'); return; }
+          addExpense(ei, ea, en); return;
+        }
+        if (d.paycustom != null) {
+          var ci = $('cust-' + b.dataset.idx), ca = parseFloat(ci ? ci.value : '') || 0;
+          if (ca <= 0) { toast('Enter an amount first.'); return; }
+          addPayment(d.paycustom, ca, ''); return;
+        }
+        if (d.addpay) {
+          var pw = ($('finWho') || {}).value || '', pa = parseFloat(($('finAmt') || {}).value) || 0, pn = (($('finNote') || {}).value || '').trim();
+          if (!pw || pa <= 0) { toast('Pick a member and enter an amount.'); return; }
+          addPayment(pw, pa, pn); return;
+        }
         if (d.add) {
           mutate(function (x) {
             if (d.add === 'pack') x.pack.push({ uid: nextUid(x.pack), item: '', who: '', note: '' });
             else if (d.add === 'mem') x.members.push({ uid: nextUid(x.members), name: '', bike: '', pillion: '', fuel: '', range: 0 });
+            else if (d.add === 'exp') x.expenses.push({ uid: nextUid(x.expenses), item: '', amount: 0, who: '', note: '' });
             else if (d.add === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes.push(''); }
             else if (d.add === 'row') { var dy = findDay(x, d.did); if (dy) dy.rows.push({ uid: nextUid(dy.rows), t: '', act: '', alt: '', note: '', loc: '' }); }
             else if (d.add === 'day') { var n = x.days.reduce(function (m, y) { return Math.max(m, +y.id.slice(1)); }, 0) + 1; x.days.push({ id: 'd' + n, name: '', label: 'Day ' + n, sub: '', date: '', title: '', stay: '', gmap: '', waze: '', rows: [] }); S.day = 'd' + n; S.edit = true; }
@@ -1474,6 +1669,8 @@
               if (String(S.state[key('lim', 'uid')]) === d.id) setState(key('lim', 'uid'), '');
             }
             else if (d.rm === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes.splice(+d.id, 1); }
+            else if (d.rm === 'pay') x.payments = keep(x.payments);
+            else if (d.rm === 'exp') x.expenses = keep(x.expenses);
             else if (d.rm === 'row') { var dy = findDay(x, d.did); if (dy) dy.rows = keep(dy.rows); }
             else if (d.rm === 'day') { x.days = x.days.filter(function (y) { return y.id !== d.id; }); S.day = null; }
           }, true, 'Deleted.');
@@ -1535,9 +1732,11 @@
                 } else m[f] = v.trim();
               }
             }
+            else if (k === 'exp') { var ex = byUid(x.expenses, id); if (ex) ex[f] = f === 'amount' ? (parseFloat(v) || 0) : v.trim(); }
+            else if (k === 'fund') { x.fund = Math.max(0, parseFloat(v) || 0); }
             else if (k === 'day') { var dd = findDay(x, id); if (dd) dd[f] = v.trim(); }
             else if (k === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes[+id] = v.trim(); }
-          }, k === 'row' && f === 't');
+          }, (k === 'row' && f === 't') || k === 'fund' || k === 'exp');
         }
       });
 
