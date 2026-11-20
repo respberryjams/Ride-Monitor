@@ -658,7 +658,7 @@
         if (S.who && list.some(function (n) { return n.toLowerCase() === S.who.toLowerCase(); })) {
           return list.filter(function (n) { return n.toLowerCase() === S.who.toLowerCase(); })[0];
         }
-        return list[0] || 'Shared';
+        return list.length ? '' : 'Shared';
       }
       function packMemberKey(uid, memberName) {
         var who = String(memberName || 'Shared').trim().toLowerCase() || 'shared';
@@ -678,6 +678,7 @@
           return { done: done, total: t.pack.length, label: done + ' of ' + t.pack.length + ' packed' };
         }
         var active = getActiveMember(t);
+        if (!active) return { done: 0, total: t.pack.length, label: 'Pick your name to start ticking', noMe: true };
         var activeDone = 0;
         t.pack.forEach(function (p) { if (isPackChecked(p.uid, active)) activeDone++; });
         return {
@@ -1201,27 +1202,30 @@
           '<div class="stat"><b>' + days.length + '</b><span>Days</span></div>' +
           '<div class="stat"><b>' + t.members.length + '</b><span>Members</span></div>' +
           '<div class="stat"><b>' + fuelStops + '</b><span>Fuel stops</span></div>' +
-          '<div class="stat"><b>' + ps.done + '/' + ps.total + '</b><span>' + esc(getActiveMember(t)) + ' packed</span></div></div>';
+          (ps.noMe ? '<div class="stat" data-tab="packing" style="cursor:pointer"><b>?</b><span>Pick your name</span></div></div>' : '<div class="stat"><b>' + ps.done + '/' + ps.total + '</b><span>' + esc(getActiveMember(t)) + ' packed</span></div></div>');
 
         var att = [];
         var activeWho = getActiveMember(t);
-        var pending = t.pack.map(function (p) { return { p: p, i: p.uid }; }).filter(function (x) {
-          var ck = memberNames(t).length ? isPackChecked(x.i, activeWho) : (!!S.state[key('p', x.i)] || isPackChecked(x.i, 'Shared'));
-          return !ck && (isMust(x.p.note) || isMust(x.p.who));
+        var allNames = memberNames(t);
+        t.pack.forEach(function (p) {
+          if (!(isMust(p.note) || isMust(p.who))) return;
+          var missing = allNames.length ? allNames.filter(function (nm) { return !isPackChecked(p.uid, nm); }) : (S.state[key('p', p.uid)] || isPackChecked(p.uid, 'Shared') ? [] : ['everyone']);
+          if (!missing.length) return;
+          var shown = missing.length > 3 ? missing.slice(0, 3).join(', ') + ' +' + (missing.length - 3) : missing.join(', ');
+          att.push(['red', 'Must', p.item + ' · not packed by ' + shown, 'packing', 'must']);
         });
-        pending.forEach(function (x) { att.push(['red', 'Must', x.p.item + ' · not ticked by ' + activeWho]); });
         var noWho = t.pack.filter(function (p) {
           var hasCarrier = !!(S.state[key('w', p.uid)] != null ? S.state[key('w', p.uid)] : p.who);
           var anyChecked = checkedByMembers(t, p.uid).length > 0 || !!S.state[key('p', p.uid)];
           return !hasCarrier && !anyChecked;
         }).length;
-        if (noWho) att.push(['amber', 'Carrier', noWho + ' items have no carrier yet']);
+        if (noWho) att.push(['amber', 'Carrier', noWho + ' items have no carrier yet', 'packing', 'nocarrier']);
         days.forEach(function (d) { analyze(d, lim && lim.range).forEach(function (a) { var lv = level(a.ratio); if (lv) att.push([lv, 'Fuel', d.label + ': ' + a.cum + ' km before refuelling at ' + shortAct(a.act) + ' (' + Math.round(a.ratio * 100) + '% of ' + lim.name + "'s range)", 'fuel']); }); });
         t.members.filter(function (m) { return !m.range; }).forEach(function (m) { att.push(['amber', 'Member', m.name + ' has no tank range' + (m.bike ? '' : ' / no vehicle'), 'members']); });
         var attIcon = { Must: '⚠️', Carrier: '🏷️', Fuel: '⛽', Member: '👤' };
         var attHtml = att.length ? '<ul class="list">' + att.map(function (a) {
           var tab = a[3] || (a[1] === 'Must' || a[1] === 'Carrier' ? 'packing' : 'members');
-          return '<li class="rowlink" data-tab="' + tab + '"><span class="pill ' + (a[0] === 'red' ? 'red' : 'amber') + '">' + (attIcon[a[1]] || '') + ' ' + a[1] + '</span><span class="grow">' + esc(a[2]) + '</span></li>';
+          return '<li class="rowlink" data-tab="' + tab + '"' + (a[4] ? ' data-setfilter="' + a[4] + '"' : '') + '><span class="pill ' + (a[0] === 'red' ? 'red' : 'amber') + '">' + (attIcon[a[1]] || '') + ' ' + a[1] + '</span><span class="grow">' + esc(a[2]) + '</span></li>';
         }).join('') + '</ul>' : '<p class="empty">Nothing needs attention. 🎉</p>';
 
         var notes = t.notes.concat(t.packNotes);
@@ -1234,12 +1238,23 @@
         } else if (notes.length) {
           notesHtml = '<section class="panel"><h2>Trip notes</h2><ul class="list">' + notes.map(function (n) { return '<li><span class="grow">' + esc(n) + '</span></li>'; }).join('') + '</ul></section>';
         }
-        var stayHtml = days.map(function (d) {
-          if (!d.stay) return '';
-          var link = d.gmap || d.waze || '';
-          var pill = '<span class="pill">📍 ' + esc(d.label) + '</span><span class="grow">' + esc(d.stay) + '</span>' + (link ? '<span class="muted small">Open ↗</span>' : '');
-          return link ? '<li class="rowlink"><a class="rowlink-a" href="' + esc(link) + '" target="_blank" rel="noopener">' + pill + '</a></li>' : '<li>' + pill + '</li>';
-        }).join('');
+        var stayHtml;
+        if (S.edit) {
+          stayHtml = days.map(function (d) {
+            return '<li style="display:block"><div class="pill" style="margin-bottom:8px">📍 ' + esc(d.label) + (d.date ? ' · ' + fmtDate(d.date) : '') + '</div><div class="fgrid">' +
+              fld('Stay / Accommodation', inp('day', d.id, 'stay', d.stay, 'Stay name')) +
+              fld('Google Maps link', inp('day', d.id, 'gmap', d.gmap, 'https://')) +
+              fld('Waze link', inp('day', d.id, 'waze', d.waze, 'https://')) +
+              fld('Weather location', inp('day', d.id, 'wloc', d.wloc || '', dayPlace(t, d) || 'Town or city')) + '</div></li>';
+          }).join('');
+        } else {
+          stayHtml = days.map(function (d) {
+            if (!d.stay) return '';
+            var link = d.gmap || d.waze || '';
+            var pill = '<span class="pill">📍 ' + esc(d.label) + '</span><span class="grow">' + esc(d.stay) + '</span>' + (link ? '<span class="muted small">Open ↗</span>' : '');
+            return link ? '<li class="rowlink"><a class="rowlink-a" href="' + esc(link) + '" target="_blank" rel="noopener">' + pill + '</a></li>' : '<li>' + pill + '</li>';
+          }).join('');
+        }
         var quickShare = '<div class="links quick-actions" style="justify-content:flex-end"><button class="btn sm" type="button" data-syncnow="1">🔄 Sync Now</button></div>';
         return (S.edit ? '<section class="panel"><h2>Trip name</h2>' + inp('trip', 'x', 'name', t.name, 'Trip name') + '</section>' : '') +
           '<section class="hero">' + hero + '</section>' +
@@ -1361,14 +1376,16 @@
 
         var whoBar = '';
         if (names.length) {
-          var opts = names.map(function (nm) {
-            return '<option value="' + esc(nm) + '"' + (nm === activeWho ? ' selected' : '') + '>' + esc(nm) + '</option>';
-          }).join('');
-          whoBar = '<div class="who-bar">' +
-            '<span class="small"><b>Ticking as:</b></span>' +
-            '<select data-pickwho="1" aria-label="Select member ticking packing list">' + opts + '</select>' +
-            '<span class="muted small">Each member has their own ticks (e.g. Kamal has ticked an item, Irfan has not).</span>' +
-            '</div>';
+          if (!activeWho) {
+            whoBar = '<div class="who-bar" style="display:grid"><span><b>Who are you?</b> <span class="muted small">Pick your name once. You can only tick your own items.</span></span>' +
+              '<div class="links">' + names.map(function (nm) {
+                return '<button class="chip" type="button" data-iam="' + esc(nm) + '">' + esc(nm) + '</button>';
+              }).join('') + '</div></div>';
+          } else {
+            whoBar = '<div class="who-bar"><span class="small">You are <b>' + esc(activeWho) + '</b></span>' +
+              '<button class="btn sm" type="button" data-switchme="1">Not you?</button>' +
+              '<span class="muted small">Only you can tick for ' + esc(activeWho) + '. Other members\' ticks show as tags.</span></div>';
+          }
         }
 
         var rows = t.pack.map(function (p) {
@@ -1376,7 +1393,13 @@
           var whoList = checkedByMembers(t, p.uid);
           return { p: p, i: p.uid, ck: ck, whoList: whoList };
         }).filter(function (x) {
-          return S.edit || S.filter === 'all' || (S.filter === 'todo' ? !x.ck : x.ck);
+          if (S.edit || S.filter === 'all') return true;
+          if (S.filter === 'must') return isMust(x.p.note) || isMust(x.p.who);
+          if (S.filter === 'nocarrier') {
+            var hc = !!(S.state[key('w', x.i)] != null ? S.state[key('w', x.i)] : x.p.who);
+            return !hc && !x.whoList.length && !S.state[key('p', x.i)];
+          }
+          return S.filter === 'todo' ? !x.ck : x.ck;
         });
 
         var f = function (id, l) { return '<button class="chip" data-filter="' + id + '" aria-pressed="' + (S.filter === id) + '">' + l + '</button>'; };
@@ -1388,11 +1411,11 @@
             : '';
 
           if (S.edit) {
-            return '<li class="' + (x.ck ? 'done' : '') + '"><input class="tick" type="checkbox" data-pack="' + x.i + '" aria-label="Mark done for ' + esc(activeWho) + '" ' + (x.ck ? 'checked' : '') + '>' +
+            return '<li class="' + (x.ck ? 'done' : '') + '"><input class="tick" type="checkbox" data-pack="' + x.i + '" aria-label="Mark done for ' + esc(activeWho) + '" ' + (x.ck ? 'checked' : '') + (names.length && !activeWho ? ' disabled' : '') + '>' +
               '<div class="it">' + inp('pack', x.i, 'item', x.p.item, 'Item name') + inp('pack', x.i, 'note', x.p.note, 'Comment (write "must" or "wajib" if essential)') + tagsHtml + '</div>' + whoIn +
               '<button class="btn sm danger" data-rm="pack" data-id="' + x.i + '">Delete</button></li>';
           }
-          return '<li class="' + (x.ck ? 'done' : '') + '"><input class="tick" type="checkbox" data-pack="' + x.i + '" aria-label="Mark packed (' + esc(activeWho) + '): ' + esc(x.p.item) + '" ' + (x.ck ? 'checked' : '') + '>' +
+          return '<li class="' + (x.ck ? 'done' : '') + '"><input class="tick" type="checkbox" data-pack="' + x.i + '" aria-label="Mark packed (' + esc(activeWho) + '): ' + esc(x.p.item) + '" ' + (x.ck ? 'checked' : '') + (names.length && !activeWho ? ' disabled' : '') + '>' +
             '<div class="it"><span>' + esc(x.p.item) + '</span>' + (isMust(x.p.note) || isMust(x.p.who) ? ' <span class="pill red">Must bring</span>' : '') +
             (x.p.note && !isMust(x.p.note) ? '<div class="muted small">' + esc(x.p.note) + '</div>' : '') +
             tagsHtml + '</div>' + whoIn + '</li>';
@@ -1401,7 +1424,7 @@
         return '<section class="panel"><h2>Packing list</h2>' +
           whoBar +
           '<div class="small muted" style="margin-bottom:6px">' + esc(ps.label) + '</div><div class="meter" style="margin-bottom:14px"><i style="width:' + (ps.total ? ps.done / ps.total * 100 : 0) + '%"></i></div>' +
-          (S.edit ? '' : '<div class="filters">' + f('all', 'All') + f('todo', 'To pack') + f('done', 'Packed') + '</div>') +
+          (S.edit ? '' : '<div class="filters">' + f('all', 'All') + f('todo', 'To pack') + f('done', 'Packed') + f('must', 'Must bring') + f('nocarrier', 'No carrier') + '</div>') +
           (list ? '<ul class="pack' + (S.edit ? ' edit' : '') + '">' + list + '</ul>' : '<p class="empty">' + (t.pack.length ? 'No items match this filter.' : 'No packing items yet. Tap Edit above to add items.') + '</p>') +
           (S.edit ? '<div class="addbar"><button class="btn sm sign" data-add="pack">+ Add item</button></div>' : '') + '</section>';
       }
@@ -1632,13 +1655,15 @@
 
       /* ---------- events ---------- */
       document.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-pay],[data-paycustom],[data-addpay],[data-preset],[data-addexp],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-export],[data-copylink],[data-syncnow],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
+        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-pay],[data-paycustom],[data-addpay],[data-preset],[data-addexp],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-iam],[data-switchme],[data-setfilter],[data-export],[data-copylink],[data-syncnow],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
         if (!b) return;
         var d = b.dataset;
         if (b.id === 'btnEdit') { S.edit = !S.edit; render(); return; }
         if (b.id === 'btnSyncNow' || d.syncnow) { forceSyncNow(); return; }
         if (b.id === 'btnShareLink' || d.copylink) { copyShareLink(); return; }
         if (d.export) { if (trip()) exportExcel(trip().data); return; }
+        if (d.iam) { S.who = d.iam; store.set('konvoi.who', S.who); render(); toast('Hi ' + d.iam + '. You can now tick your items.'); return; }
+        if (d.switchme) { if (confirm('Switch identity? You will need to pick your name again.')) { S.who = ''; store.set('konvoi.who', ''); render(); } return; }
         if (d.picklim) {
           setState(key('lim', 'uid'), d.picklim);
           mutate(function (x) { x.limiterUid = d.picklim; }, true);
@@ -1702,6 +1727,7 @@
           return;
         }
         if (b.id === 'btnImport' || d.pick) { $('fileIn').click(); return; }
+        if (d.setfilter) S.filter = d.setfilter;
         if (d.tab) { S.tab = d.tab; store.set('konvoi.tab', S.tab); ensureRoomInUrl(roomId); window.scrollTo(0, 0); }
         else if (d.day) S.day = d.day;
         else if (d.filter) S.filter = d.filter;
@@ -1739,6 +1765,7 @@
         } else if (el.dataset.pack != null && el.dataset.pack !== '') {
           var curTrip = trip();
           var activeWho = curTrip && memberNames(curTrip.data).length ? getActiveMember(curTrip.data) : 'Shared';
+          if (!activeWho) { el.checked = false; toast('Pick your name first.'); render(); return; }
           setState(packMemberKey(el.dataset.pack, activeWho), el.checked);
           render();
         } else if (el.dataset.ed) {
