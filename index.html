@@ -186,7 +186,7 @@
     .shortcuts { margin-top: 8px; }
 
     /* bottom nav */
-    .bnav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 9;
+    .bnav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 9;
       background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 18px rgba(0,0,0,.08);
       padding: 6px max(4px, calc((100% - 980px) / 2), env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(4px, calc((100% - 980px) / 2), env(safe-area-inset-left, 0px)); }
     .bnav button { background: none; border: 0; display: grid; justify-items: center; gap: 2px; padding: 5px 2px 4px; color: var(--mute); font-size: .7rem; font-weight: 600; letter-spacing: .01em; min-width: 0; border-radius: 12px; }
@@ -414,7 +414,7 @@
   <script>
     (function () {
       'use strict';
-      var TABS = [['summary', 'Summary'], ['schedule', 'Schedule'], ['members', 'Members'], ['packing', 'Packing'], ['fuel', 'Fuel'], ['files', 'Files']];
+      var TABS = [['summary', 'Summary'], ['schedule', 'Schedule'], ['members', 'Members'], ['packing', 'Packing'], ['fuel', 'Fuel']];
       var $ = function (id) { return document.getElementById(id); };
       var esc = function (x) { return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
       var store = {
@@ -1231,31 +1231,13 @@
         return '<section class="panel"><h2>Plan your first trip</h2><p class="muted">Keep your schedule, members, packing list, and fuel stops together in one place.</p>' +
           '<div class="links"><button class="btn sign" type="button" data-new="1">+ New Trip</button><button class="btn" type="button" data-pick="1">Import .xlsx</button><button class="btn" type="button" data-loadsample="1">Load sample trip</button></div></section>';
       }
-      function viewFail(t) {
-        var items = trips().map(function (x) {
-          var del = (x.builtin ? '<span class="pill">Sample</span>' : '') + (S.confirmDel === x.id ? '<button class="btn sm danger" data-delyes="' + x.id + '">Confirm delete</button><button class="btn sm" data-delno="1">Cancel</button>' : '<button class="btn sm danger" data-del="' + x.id + '">' + (x.builtin ? 'Remove' : 'Delete') + '</button>');
-          return '<div class="tripitem"><div class="grow"><b>' + esc(x.name) + '</b><div class="muted small">' + x.data.days.length + ' days · ' + x.data.members.length + ' members · ' + x.data.pack.length + ' items</div></div>' +
-            (x.builtin && S.edits[x.id] ? '<button class="btn sm" data-resetedit="1">Reset to original</button>' : '') + (x.id === S.tripId ? '<span class="pill sign">Open</span>' : '<button class="btn sm" data-open="' + x.id + '">Open</button>') + del + '</div>';
-        }).join('');
-        return '<section class="panel"><h2>Sync Room (' + esc(roomId) + ')</h2>' +
-          '<p class="muted small" style="margin-top:0">Everyone who opens this room link shares schedule and packing list changes. Press <b>🔄 Sync</b> at any time to push or pull the latest updates.</p>' +
-          '<div class="links quick-actions"><button class="btn sign" type="button" data-syncnow="1">🔄 Sync Now</button><button class="btn" type="button" data-copylink="1">🔗 Copy Room Link</button><button class="btn" type="button" data-export="1">📥 Export Excel (.xlsx)</button></div></section>' +
-          '<section class="panel"><h2>Add a trip</h2><div class="drop" id="drop"><div>Tap below to pick an .xlsx file or drag one here</div><div class="links" style="justify-content:center"><button class="btn sign" type="button" data-new="1">+ New Trip</button><button class="btn" type="button" data-pick="1">Choose file</button></div><div class="muted small">Files are processed locally in your browser.</div></div></section>' +
-          '<section class="panel"><h2>Your trips</h2>' + items + (S.hideSample ? '<div class="addbar"><button class="btn sm" data-loadsample="1">Load sample trip</button></div>' : '') + '</section>' +
-          '<section class="panel"><h2>Recognised Excel sheet formats</h2><div class="scroll"><table class="fmt"><thead><tr><th>Type</th><th>How it is detected</th><th>Columns</th></tr></thead><tbody>' +
-          '<tr><td>Daily schedule</td><td>A sheet with a <b>Time</b> (or <b>Masa</b>) column header</td><td>Time, Activity, Backup, Comment. Header rows above: Activity / Date, Stay, Google Maps, Waze</td></tr>' +
-          '<tr><td>Members</td><td>Headers <b>Name</b> and <b>Vehicle</b> (or <b>Nama</b> and <b>Jenis Motor</b>)</td><td>Name, Vehicle, Passenger, Full tank range (e.g. "380KM full tank")</td></tr>' +
-          '<tr><td>Packing</td><td>An <b>Items</b> (or <b>Barangan</b>) column header</td><td>Items, Carrier, Comment. Include "must" or "wajib" for essential items</td></tr>' +
-          '</tbody></table></div></section>';
-      }
-
-      var VIEWS = { summary: viewRingkasan, schedule: viewJadual, members: viewAhli, packing: viewBarangan, fuel: viewMinyak, files: viewFail };
+      var VIEWS = { summary: viewRingkasan, schedule: viewJadual, members: viewAhli, packing: viewBarangan, fuel: viewMinyak };
       function render() {
         renderHeader();
         if (!trip()) { $('main').innerHTML = viewWelcome(); wireDrop(); return; }
         var t = trip().data;
         $('btnEdit').setAttribute('aria-pressed', S.edit); $('btnEdit').textContent = S.edit ? 'Done' : 'Edit';
-        $('main').innerHTML = (S.edit && S.tab !== 'files' ? '<div class="banner">Edit mode active. Changes are saved and synced automatically.</div>' : '') + VIEWS[S.tab](t);
+        $('main').innerHTML = (S.edit ? '<div class="banner">Edit mode active. Changes are saved and synced automatically.</div>' : '') + VIEWS[S.tab](t);
         wireDrop();
       }
       function rerenderSoft() {
