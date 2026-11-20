@@ -974,6 +974,24 @@
         if (undoMsg) toast(undoMsg, function () { commit(trip(), JSON.parse(prev)); render(); });
       }
       function saveTrips() { store.set('konvoi.trips', JSON.stringify(S.imported)); }
+      function rowTimeVal(t) {
+        var m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '').trim());
+        if (!m) return null;
+        var v = (+m[1]) * 60 + (+m[2]);
+        if (+m[1] < 5) v += 1440; // small hours = continuation of the night before, keep it last
+        return v;
+      }
+      function sortDayRows(dy) {
+        var withIdx = dy.rows.map(function (r, i) { return { r: r, i: i, v: rowTimeVal(r.t) }; });
+        withIdx.sort(function (a, b) {
+          if (a.v == null && b.v == null) return a.i - b.i;
+          if (a.v == null) return 1;
+          if (b.v == null) return -1;
+          if (a.v !== b.v) return a.v - b.v;
+          return a.i - b.i;
+        });
+        dy.rows = withIdx.map(function (x) { return x.r; });
+      }
 
       function shareUrl() {
         var base = location.href.split('#')[0];
@@ -1506,7 +1524,7 @@
           mutate(function (x) {
             if (k === 'trip') x.name = v.trim() || x.name;
             else if (k === 'pack') { var p = byUid(x.pack, id); if (p) p[f] = v.trim(); if (f === 'who') setState(key('w', id), ''); }
-            else if (k === 'row') { var dy = findDay(x, el.dataset.did); var r = dy && byUid(dy.rows, id); if (r) r[f] = f === 'note' ? v : v.trim(); }
+            else if (k === 'row') { var dy = findDay(x, el.dataset.did); var r = dy && byUid(dy.rows, id); if (r) { r[f] = f === 'note' ? v : v.trim(); if (f === 't' && dy) sortDayRows(dy); } }
             else if (k === 'mem') {
               var m = byUid(x.members, id);
               if (m) {
@@ -1519,7 +1537,7 @@
             }
             else if (k === 'day') { var dd = findDay(x, id); if (dd) dd[f] = v.trim(); }
             else if (k === 'note') { x.notes = x.notes.concat(x.packNotes); x.packNotes = []; x.notes[+id] = v.trim(); }
-          }, false);
+          }, k === 'row' && f === 't');
         }
       });
 
