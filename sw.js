@@ -1,5 +1,5 @@
 /* Tripcrew service worker: app shell cache, network-first for the page */
-var CACHE = 'tripcrew-v2';
+var CACHE = 'tripcrew-v3';
 var SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
