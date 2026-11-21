@@ -1091,6 +1091,7 @@
         S.online = true;
         S.lastSyncTimeStr = fmtClock();
         reapplyOutbox();
+        if (store.get(seenKey()) == null) markChatSeen();
         var sk = seededKey();
         if (!store.get(sk)) {
           store.set(sk, '1');
@@ -1355,7 +1356,7 @@
         store.set(seenKey(), String(Math.max(last, +store.get(seenKey()) || 0)));
       }
       function chatUnread() {
-        if (S.tab === 'chat') return 0;
+        if (S.tab === 'chat' || !S.who || store.get(seenKey()) == null) return 0;
         var seen = +store.get(seenKey()) || 0, me = String(S.who || '').toLowerCase();
         return chatList().filter(function (m) { return m.ts > seen && m.n.toLowerCase() !== me; }).length;
       }
@@ -1397,7 +1398,7 @@
         }
         var quick = ['On my way 🏍️', 'Fuel stop ⛽', 'Rest stop ☕', 'Wait for me!', '👍', '🙏'];
         return '<section class="panel chatp"><div class="chat-top"><div class="avs">' + names.slice(0, 5).map(function (n) { return '<i class="mav" style="background:' + avColor(n) + '">' + esc(n.charAt(0).toUpperCase()) + '</i>'; }).join('') + '</div>' +
-          '<div style="min-width:0"><b class="ct">Convoy chat</b><div class="muted small">' + names.length + ' riders · you are <b>' + esc(S.who) + '</b> · <button class="linkbtn" type="button" data-switchme="1">not you?</button></div></div></div>' +
+          '<div style="min-width:0"><b class="ct">Convoy chat</b><div class="muted small">' + names.length + ' riders · you are <b>' + esc(S.who) + '</b> · <button class="linkbtn" type="button" data-switchme="1">not you?</button> · <button class="linkbtn" type="button" data-clearchat="1">clear chat</button></div></div></div>' +
           '<div class="chat-log" id="chatLog">' + chatMsgsHtml() + '</div>' +
           '<div class="quick">' + quick.map(function (q) { return '<button type="button" class="qchip" data-quick="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>' +
           '<div class="emo" id="emoPanel" hidden>' + EMOJIS.map(function (x) { return '<button type="button" data-emoji="' + x + '">' + x + '</button>'; }).join('') + '</div>' +
@@ -2145,7 +2146,7 @@
           S.openCarrierMenu = null;
           document.querySelectorAll('.c-menu.open').forEach(function (m) { m.classList.remove('open'); });
         }
-        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-pay],[data-paycustom],[data-addpay],[data-preset],[data-addexp],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-iam],[data-switchme],[data-setfilter],[data-export],[data-copylink],[data-syncnow],[data-cmenu],[data-cclose],[data-emojitoggle],[data-emoji],[data-editmsg],[data-editcancel],[data-quick],[data-modalname],[data-locstart],[data-locstop],[data-sos],[data-addfuel],[data-msg],[data-delmsg],[data-chatname],[data-edopen],[data-edclose],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
+        var b = e.target.closest('[data-tab],[data-day],[data-filter],[data-pick],[data-open],[data-del],[data-delyes],[data-delno],[data-add],[data-pay],[data-paycustom],[data-addpay],[data-preset],[data-addexp],[data-rm],[data-resetedit],[data-new],[data-loadsample],[data-picklim],[data-iam],[data-switchme],[data-setfilter],[data-export],[data-copylink],[data-syncnow],[data-cmenu],[data-cclose],[data-clearchat],[data-emojitoggle],[data-emoji],[data-editmsg],[data-editcancel],[data-quick],[data-modalname],[data-locstart],[data-locstop],[data-sos],[data-addfuel],[data-msg],[data-delmsg],[data-chatname],[data-edopen],[data-edclose],#btnEdit,#btnImport,#btnShareLink,#btnSyncNow');
         if (!b) return;
         var d = b.dataset;
         if (d.cmenu != null) {
@@ -2181,6 +2182,13 @@
           return;
         }
         if (d.editcancel) { cancelEdit(); return; }
+        if (d.clearchat) {
+          if (!chatList().length) { toast('Chat is already empty.'); return; }
+          if (confirm('Delete ALL messages in this room for everyone? This cannot be undone.')) {
+            queueWrite('chat', null); S.chatSel = ''; cancelEdit(); updateChat(true); toast('Chat cleared.');
+          }
+          return;
+        }
         if (d.quick) { if (S.who) sendChat(d.quick); return; }
         if (d.modalname) {
           var mv = (($('modalName') || {}).value || '').trim();
