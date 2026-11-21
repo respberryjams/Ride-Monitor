@@ -811,7 +811,8 @@
         flushing: null,
         es: null,
         pendingRender: false,
-        lastSyncTimeStr: ''
+        lastSyncTimeStr: '',
+        notifyReady: false
       };
       try { S.imported = JSON.parse(store.get('konvoi.trips') || '[]'); } catch (e) { S.imported = []; }
       try { S.state = JSON.parse(store.get('konvoi.state') || '{}'); } catch (e) { S.state = {}; }
@@ -1119,6 +1120,27 @@
         S.imported.forEach(function (x) { writeTripSections(x.id, null, x.data); });
         if (S.hideSample) queueWrite('meta/hideSample', true);
       }
+      function notifyPackChanges(prevState) {
+        /* Bagitahu bila ahli LAIN tick barang packing (bukan tick sendiri).
+           Lompat notification pada sync pertama sesi ni (elak spam masa app baru bukak). */
+        if (!S.notifyReady) { S.notifyReady = true; return; }
+        var me = String(S.who || '').toLowerCase();
+        var msgs = [];
+        trips().forEach(function (t) {
+          var names = memberNames(t);
+          if (!names.length) return;
+          t.pack.forEach(function (p) {
+            names.forEach(function (nm) {
+              if (nm.toLowerCase() === me) return;
+              var k = packMemberKey(p.uid, nm);
+              if (!prevState[k] && S.state[k]) msgs.push(nm + ' tick ' + p.item);
+            });
+          });
+        });
+        if (!msgs.length) return;
+        if (msgs.length === 1) toast('✅ ' + msgs[0]);
+        else toast('✅ ' + msgs.length + ' kemaskini packing (' + msgs.slice(0, 2).join(', ') + (msgs.length > 2 ? ', ...' : '') + ')');
+      }
       function onRemote() {
         S.online = true;
         S.lastSyncTimeStr = fmtClock();
@@ -1129,7 +1151,9 @@
           store.set(sk, '1');
           if (isEmptyObj(R)) { seedFromLocal(); renderHeader(); return; }
         }
+        var prevState = S.state;
         rebuildFromR();
+        notifyPackChanges(prevState);
         rerenderSoft();
       }
 
@@ -1315,7 +1339,20 @@
       }
 
       /* ---------- views ---------- */
+      function updateAppBadge() {
+        /* Badge nombor kat icon app (macam WhatsApp) bila app di-install sebagai PWA.
+           Cuma jalan selagi app/tab masih hidup dalam memori — tak boleh update bila
+           app betul-betul ditutup/phone tidur lama (tiada push server). */
+        try {
+          if (!('setAppBadge' in navigator)) return;
+          var n = chatUnread();
+          if (n > 0) navigator.setAppBadge(n);
+          else if ('clearAppBadge' in navigator) navigator.clearAppBadge();
+          else navigator.setAppBadge(0);
+        } catch (e) {}
+      }
       function renderHeader() {
+        updateAppBadge();
         var t = trip() || { data: { days: [], members: [] } };
         var badge = $('syncBadge'), badgeTxt = $('syncBadgeTxt');
         if (badge && badgeTxt) {
