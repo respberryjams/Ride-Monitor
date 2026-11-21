@@ -561,6 +561,29 @@
     .chatp .chat-form { margin-top: 8px; }
     .chatp .quick { padding: 8px 0 0; }
     .chatp .chat-top { margin-bottom: 8px; }
+
+    /* ---------- smooth interactions ---------- */
+    html { scroll-behavior: smooth; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes pop { from { opacity: 0; transform: scale(.96) translateY(-4px); } to { opacity: 1; transform: none; } }
+    @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+    main.fade > * { animation: rise .24s ease-out both; }
+    main.fade > *:nth-child(2) { animation-delay: .04s; }
+    main.fade > *:nth-child(3) { animation-delay: .08s; }
+    .menu:not([hidden]) { animation: pop .14s ease-out; transform-origin: top right; }
+    .who-modal:not([hidden]) { animation: fadein .2s ease-out; }
+    .who-card { animation: rise .25s ease-out both; }
+    .toast:not([hidden]) { animation: rise .2s ease-out; }
+    .msg { animation: pop .16s ease-out; }
+    .btn, .chip, .qchip, .ib, .pen, .mi, .emo button, .bnav button, .list li.rowlink, .tick, .tl li, .pack li { transition: background-color .15s, border-color .15s, color .15s, transform .12s, box-shadow .15s, opacity .15s; }
+    .btn:active, .chip:active, .qchip:active, .ib:active, .pen:active, .mi:active, .emo button:active, .bnav button:active { transform: scale(.95); }
+    .tick:active { transform: scale(.88); }
+    .meter i { transition: width .35s ease; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      main.fade > *, .menu, .who-modal, .who-card, .toast, .msg { animation: none !important; }
+      * { transition: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -2104,11 +2127,15 @@
       function render() {
         renderHeader();
         renderWhoModal();
+        var dtEl = document.querySelector && document.querySelector('.daytabs'), dtl = dtEl ? dtEl.scrollLeft : 0;
         if (!trip()) { $('main').innerHTML = viewWelcome(); wireDrop(); return; }
         var t = trip().data;
         $('btnEdit').setAttribute('aria-pressed', S.edit); var etx = $('btnEditTxt'); if (etx) etx.textContent = S.edit ? 'Done' : 'Edit all';
         $('main').innerHTML = (S.edit ? '<div class="banner">Edit mode active. Changes are saved and synced automatically.</div>' : '') + VIEWS[S.tab](t);
         wireDrop();
+        var dt2 = document.querySelector && document.querySelector('.daytabs'); if (dt2 && dtl) dt2.scrollLeft = dtl;
+        var mn = $('main');
+        if (S.lastTab !== S.tab) { S.lastTab = S.tab; if (mn.classList) { mn.classList.remove('fade'); void mn.offsetWidth; mn.classList.add('fade'); } }
         if (document.body) document.body.classList.toggle('chat-mode', S.tab === 'chat' && !!S.who);
         if (S.tab === 'chat') afterChatRender();
       }
