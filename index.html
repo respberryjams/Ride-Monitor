@@ -552,6 +552,15 @@
     .hthen-t { display: grid; min-width: 0; color: #e6dcc8; font-size: .92rem; }
     .hthen-t small { font-size: .68rem; color: #9a9ea3; text-transform: uppercase; letter-spacing: .06em; }
     .hthen-t span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* chat fills the screen: composer always visible above the nav */
+    body.chat-mode main { padding-bottom: 12px; }
+    .chatp { display: flex; flex-direction: column; min-height: 0; padding: 12px; height: calc(100dvh - 250px); }
+    .chatp .chat-log { flex: 1 1 auto; height: auto; min-height: 0; }
+    .chatp .chat-top, .chatp .quick, .chatp .emo, .chatp .editbar, .chatp .chat-form { flex: none; }
+    .chatp .chat-form { margin-top: 8px; }
+    .chatp .quick { padding: 8px 0 0; }
+    .chatp .chat-top { margin-bottom: 8px; }
   </style>
 </head>
 <body>
@@ -1406,7 +1415,14 @@
           '<div class="editbar" id="chatEditBar"' + (S.chatEdit ? '' : ' hidden') + '><span>✎ Editing message</span><button type="button" class="linkbtn" data-editcancel="1">Cancel</button></div>' +
           '<form class="chat-form" id="chatForm" autocomplete="off"><button class="emo-btn" type="button" data-emojitoggle="1" aria-label="Emoji">😊</button><textarea id="chatIn" rows="1" maxlength="1000" placeholder="Type a message" aria-label="Message"></textarea>' +
           '<button class="chat-send" type="submit" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.500L21 4l-7.500 17-2.500-7z"/><path d="M11 14l4-4"/></svg></button></form>' +
-          '<p class="muted small" style="margin:8px 0 0">Tap your own message to delete it.</p></section>';
+          '</section>';
+      }
+      function fitChat() {
+        var pn = document.querySelector('.chatp'); if (!pn) return;
+        var bar = document.querySelector('.bar'), nav = $('bnav');
+        var vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+        var h = vh - bar.getBoundingClientRect().bottom - (nav ? nav.offsetHeight : 64) - 28;
+        pn.style.height = Math.max(300, h) + 'px';
       }
       function cancelEdit() {
         S.chatEdit = '';
@@ -1414,6 +1430,7 @@
         var bar = $('chatEditBar'); if (bar) bar.hidden = true;
       }
       function afterChatRender() {
+        fitChat();
         var l = $('chatLog'); if (l) l.scrollTop = l.scrollHeight;
         markChatSeen(); renderHeader();
       }
@@ -2092,6 +2109,7 @@
         $('btnEdit').setAttribute('aria-pressed', S.edit); var etx = $('btnEditTxt'); if (etx) etx.textContent = S.edit ? 'Done' : 'Edit all';
         $('main').innerHTML = (S.edit ? '<div class="banner">Edit mode active. Changes are saved and synced automatically.</div>' : '') + VIEWS[S.tab](t);
         wireDrop();
+        if (document.body) document.body.classList.toggle('chat-mode', S.tab === 'chat' && !!S.who);
         if (S.tab === 'chat') afterChatRender();
       }
       function rerenderSoft() {
@@ -2429,6 +2447,13 @@
         if (!(window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
         e.preventDefault();
         var f = $('chatForm'); if (f && f.requestSubmit) f.requestSubmit();
+      });
+
+      window.addEventListener('resize', fitChat);
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { fitChat(); var l = $('chatLog'); if (l) l.scrollTop = l.scrollHeight; });
+      document.addEventListener('focusin', function (e) {
+        if (e.target.id !== 'chatIn') return;
+        setTimeout(function () { fitChat(); var l = $('chatLog'); if (l) l.scrollTop = l.scrollHeight; }, 250);
       });
 
       window.addEventListener('hashchange', function () {
