@@ -1343,6 +1343,7 @@
       function fld(label, html) { return '<label class="field"><span>' + label + '</span>' + html + '</label>'; }
 
       /* ---------- chat (rooms/<room>/chat/<id> = {n,t,ts}) ---------- */
+      function isAdmin() { return String(S.who || '').trim().toLowerCase() === 'epul'; }
       function chatList() {
         var c = (R && R.chat) || {};
         return Object.keys(c).sort().map(function (k) {
@@ -1398,7 +1399,7 @@
         }
         var quick = ['On my way 🏍️', 'Fuel stop ⛽', 'Rest stop ☕', 'Wait for me!', '👍', '🙏'];
         return '<section class="panel chatp"><div class="chat-top"><div class="avs">' + names.slice(0, 5).map(function (n) { return '<i class="mav" style="background:' + avColor(n) + '">' + esc(n.charAt(0).toUpperCase()) + '</i>'; }).join('') + '</div>' +
-          '<div style="min-width:0"><b class="ct">Convoy chat</b><div class="muted small">' + names.length + ' riders · you are <b>' + esc(S.who) + '</b> · <button class="linkbtn" type="button" data-switchme="1">not you?</button> · <button class="linkbtn" type="button" data-clearchat="1">clear chat</button></div></div></div>' +
+          '<div style="min-width:0"><b class="ct">Convoy chat</b><div class="muted small">' + names.length + ' riders · you are <b>' + esc(S.who) + '</b> · <button class="linkbtn" type="button" data-switchme="1">not you?</button>' + (isAdmin() ? ' · <button class="linkbtn" type="button" data-clearchat="1">clear chat</button>' : '') + '</div></div></div>' +
           '<div class="chat-log" id="chatLog">' + chatMsgsHtml() + '</div>' +
           '<div class="quick">' + quick.map(function (q) { return '<button type="button" class="qchip" data-quick="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>' +
           '<div class="emo" id="emoPanel" hidden>' + EMOJIS.map(function (x) { return '<button type="button" data-emoji="' + x + '">' + x + '</button>'; }).join('') + '</div>' +
@@ -2183,6 +2184,7 @@
         }
         if (d.editcancel) { cancelEdit(); return; }
         if (d.clearchat) {
+          if (!isAdmin()) return;
           if (!chatList().length) { toast('Chat is already empty.'); return; }
           if (confirm('Delete ALL messages in this room for everyone? This cannot be undone.')) {
             queueWrite('chat', null); S.chatSel = ''; cancelEdit(); updateChat(true); toast('Chat cleared.');
